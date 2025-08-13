@@ -1,0 +1,1772 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StockPro - Gestion d'Entrepôt</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        'primary-dark': '#2563EB',
+                        'primary-light': '#DBEAFE',
+                        secondary: '#059669',
+                        warning: '#F59E0B',
+                        danger: '#EF4444'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        
+        .modal-backdrop {
+            backdrop-filter: blur(4px);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+        }
+        
+        .card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .big-button {
+            min-height: 80px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .quantity-input {
+            font-size: 2rem;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .stock-critical {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Application Container -->
+    <div id="app" class="min-h-screen">
+        <!-- Login Page -->
+        <div id="loginPage" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-light to-white">
+            <div class="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md fade-in">
+                <div class="text-center mb-8">
+                    <div class="w-20 h-20 bg-primary rounded-xl mx-auto mb-4 flex items-center justify-center">
+                        <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                        </svg>
+                    </div>
+                    <h1 class="text-3xl font-bold text-gray-800">StockPro</h1>
+                    <p class="text-gray-600 mt-2">Gestion d'Entrepôt Simplifiée</p>
+                </div>
+                
+                <form id="loginForm" class="space-y-6">
+                    <div>
+                        <label class="block text-lg font-medium text-gray-700 mb-3">👤 Nom d'utilisateur</label>
+                        <select id="loginUser" class="w-full px-4 py-4 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all">
+                            <option value="">Sélectionner un utilisateur</option>
+                            <option value="admin">👑 Admin - Directeur</option>
+                            <option value="employee1">👷 Marie - Employée</option>
+                            <option value="employee2">👷 Pierre - Employé</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-lg font-medium text-gray-700 mb-3">🔐 Code d'accès</label>
+                        <input type="password" id="loginPassword" class="w-full px-4 py-4 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent transition-all" placeholder="••••">
+                    </div>
+                    
+                    <button type="submit" class="w-full btn-primary text-white py-4 rounded-lg font-medium text-lg">
+                        🚀 Se connecter
+                    </button>
+                </form>
+                
+                <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                    <p class="text-sm font-medium text-gray-700 mb-2">🔑 Codes de démonstration :</p>
+                    <p class="text-xs text-gray-600">Admin: <strong>1234</strong></p>
+                    <p class="text-xs text-gray-600">Employés: <strong>0000</strong></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Application -->
+        <div id="mainApp" class="hidden">
+            <!-- Header -->
+            <header class="bg-white shadow-sm border-b-2 border-primary">
+                <div class="flex items-center justify-between h-20 px-4 sm:px-6 lg:px-8">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-primary rounded-lg flex items-center justify-center mr-4">
+                            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">StockPro</h1>
+                            <p class="text-sm text-gray-600" id="currentLocation">Entrepôt Principal</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <!-- Alerts Badge -->
+                        <div class="relative" id="alertsContainer">
+                            <button id="alertsBtn" class="p-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                </svg>
+                                <span id="alertsBadge" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center">0</span>
+                            </button>
+                        </div>
+                        
+                        <!-- User Info -->
+                        <div class="flex items-center space-x-3 bg-gray-100 rounded-lg px-4 py-2">
+                            <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
+                                <span class="text-white text-lg font-bold" id="userInitial">A</span>
+                            </div>
+                            <div>
+                                <p class="font-medium text-gray-900" id="userName">Admin</p>
+                                <p class="text-sm text-gray-600" id="userRole">Administrateur</p>
+                            </div>
+                        </div>
+                        
+                        <button id="logoutBtn" class="p-3 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-colors">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content -->
+            <main class="p-4 sm:p-6 lg:p-8">
+                <!-- Dashboard Page -->
+                <div id="dashboardPage" class="page-content fade-in">
+                    <!-- Quick Stats -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                        <div class="card bg-white p-6 rounded-xl shadow-sm border-l-4 border-primary">
+                            <div class="flex items-center">
+                                <div class="p-4 bg-primary-light rounded-lg">
+                                    <svg class="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                    </svg>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-lg font-medium text-gray-600">Total Articles</p>
+                                    <p class="text-3xl font-bold text-gray-900" id="totalProducts">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card bg-white p-6 rounded-xl shadow-sm border-l-4 border-green-500">
+                            <div class="flex items-center">
+                                <div class="p-4 bg-green-100 rounded-lg">
+                                    <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-lg font-medium text-gray-600">Stock OK</p>
+                                    <p class="text-3xl font-bold text-gray-900" id="inStockProducts">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card bg-white p-6 rounded-xl shadow-sm border-l-4 border-warning">
+                            <div class="flex items-center">
+                                <div class="p-4 bg-yellow-100 rounded-lg">
+                                    <svg class="w-8 h-8 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                    </svg>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-lg font-medium text-gray-600">Stock Faible</p>
+                                    <p class="text-3xl font-bold text-gray-900" id="lowStockProducts">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card bg-white p-6 rounded-xl shadow-sm border-l-4 border-danger">
+                            <div class="flex items-center">
+                                <div class="p-4 bg-red-100 rounded-lg">
+                                    <svg class="w-8 h-8 text-danger" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </div>
+                                <div class="ml-4">
+                                    <p class="text-lg font-medium text-gray-600">Rupture</p>
+                                    <p class="text-3xl font-bold text-gray-900" id="outOfStockProducts">0</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8" id="quickActions">
+                        <button onclick="showPage('quick-entry')" class="card bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all big-button flex flex-col items-center justify-center text-center" id="quickEntryBtn">
+                            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                            </div>
+                            <span class="text-gray-900">⚡ Entrée Rapide</span>
+                        </button>
+                        
+                        <button onclick="showPage('quick-exit')" class="card bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all big-button flex flex-col items-center justify-center text-center">
+                            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                            </div>
+                            <span class="text-gray-900">⚡ Sortie Rapide</span>
+                        </button>
+                        
+                        <button onclick="showPage('inventory')" class="card bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all big-button flex flex-col items-center justify-center text-center">
+                            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                </svg>
+                            </div>
+                            <span class="text-gray-900">📋 Inventaire</span>
+                        </button>
+                        
+                        <button onclick="showPage('reports')" class="card bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all big-button flex flex-col items-center justify-center text-center" id="reportsBtn">
+                            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                            </div>
+                            <span class="text-gray-900">📊 Rapports</span>
+                        </button>
+                    </div>
+                    
+                    <!-- Alerts Section -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                                <svg class="w-6 h-6 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                </svg>
+                                🚨 Alertes Stock
+                            </h3>
+                            <div id="stockAlerts" class="space-y-3">
+                                <!-- Stock alerts will be populated here -->
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                            <h3 class="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                                <svg class="w-6 h-6 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                📝 Activités Récentes
+                            </h3>
+                            <div id="recentActivities" class="space-y-3">
+                                <!-- Recent activities will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stock Entry Page -->
+                <div id="stock-entryPage" class="page-content hidden">
+                    <div class="max-w-4xl mx-auto">
+                        <div class="flex items-center justify-between mb-8">
+                            <div>
+                                <h2 class="text-3xl font-bold text-gray-900">📦 Entrée de Stock</h2>
+                                <p class="text-gray-600 mt-2">Ajouter des articles à l'inventaire</p>
+                            </div>
+                            <button onclick="showPage('dashboard')" class="btn-secondary text-white px-6 py-3 rounded-lg font-medium">
+                                ← Retour
+                            </button>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+                            <form id="stockEntryForm" class="space-y-8">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div>
+                                        <label class="block text-xl font-medium text-gray-700 mb-4">🏷️ Article</label>
+                                        <div class="relative">
+                                            <input type="text" id="entryProductSearch" placeholder="Taper le nom de l'article..." class="w-full px-4 py-4 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" autocomplete="off">
+                                            <div id="entryProductDropdown" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-60 overflow-y-auto hidden">
+                                                <!-- Autocomplete options will be populated here -->
+                                            </div>
+                                            <input type="hidden" id="entryProduct" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-xl font-medium text-gray-700 mb-4">📊 Quantité à ajouter</label>
+                                        <div class="flex items-center space-x-4">
+                                            <button type="button" onclick="adjustQuantity('entry', -1)" class="w-12 h-12 bg-gray-200 rounded-lg text-2xl font-bold hover:bg-gray-300">-</button>
+                                            <input type="number" id="entryQuantity" required min="1" value="1" class="quantity-input w-32 px-4 py-4 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                                            <button type="button" onclick="adjustQuantity('entry', 1)" class="w-12 h-12 bg-gray-200 rounded-lg text-2xl font-bold hover:bg-gray-300">+</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-xl font-medium text-gray-700 mb-4">📝 Motif (optionnel)</label>
+                                    <select id="entryReason" class="w-full px-4 py-4 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                                        <option value="Livraison fournisseur">📦 Livraison fournisseur</option>
+                                        <option value="Retour client">↩️ Retour client</option>
+                                        <option value="Correction inventaire">🔧 Correction inventaire</option>
+                                        <option value="Production interne">🏭 Production interne</option>
+                                        <option value="Autre">📋 Autre</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-xl font-medium text-gray-700 mb-4">💬 Commentaire (optionnel)</label>
+                                    <textarea id="entryComment" rows="3" class="w-full px-4 py-4 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Informations supplémentaires..."></textarea>
+                                </div>
+                                
+                                <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                                    <button type="button" onclick="showPage('dashboard')" class="px-8 py-4 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-lg font-medium">
+                                        Annuler
+                                    </button>
+                                    <button type="submit" class="btn-primary text-white px-8 py-4 rounded-lg font-medium text-lg">
+                                        ✅ Confirmer l'entrée
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Exit Page (Employee Friendly) -->
+                <div id="quick-exitPage" class="page-content hidden">
+                    <div class="max-w-2xl mx-auto">
+                        <div class="flex items-center justify-between mb-8">
+                            <div>
+                                <h2 class="text-3xl font-bold text-gray-900">⚡ Sortie Rapide</h2>
+                                <p class="text-gray-600 mt-2">Retrait rapide d'articles du stock</p>
+                            </div>
+                            <div class="flex space-x-4" id="employeeNavExit">
+                                <button onclick="showPage('quick-entry')" class="btn-secondary text-white px-6 py-3 rounded-lg font-medium">
+                                    ⚡ Entrée Rapide
+                                </button>
+                                <button onclick="showPage('quick-exit')" class="btn-primary text-white px-6 py-3 rounded-lg font-medium">
+                                    ⚡ Sortie Rapide
+                                </button>
+                            </div>
+                            <button onclick="showPage('dashboard')" class="btn-secondary text-white px-6 py-3 rounded-lg font-medium" id="adminBackBtnExit">
+                                ← Retour
+                            </button>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+                            <form id="quickExitForm" class="space-y-8">
+                                <div>
+                                    <label class="block text-2xl font-medium text-gray-700 mb-6">🔍 Rechercher l'article</label>
+                                    <div class="relative">
+                                        <input type="text" id="quickExitSearch" placeholder="Commencer à taper le nom..." class="w-full px-6 py-6 text-2xl border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" autocomplete="off">
+                                        <div id="quickExitDropdown" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-80 overflow-y-auto hidden">
+                                            <!-- Quick autocomplete options will be populated here -->
+                                        </div>
+                                        <input type="hidden" id="quickExitProduct" required>
+                                    </div>
+                                </div>
+                                
+                                <div id="quickExitDetails" class="hidden space-y-8">
+                                    <div class="bg-orange-50 p-6 rounded-lg border border-orange-200">
+                                        <div class="flex items-center mb-4">
+                                            <div class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mr-4">
+                                                <svg class="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h3 class="text-xl font-bold text-orange-900" id="selectedExitProductName">Article sélectionné</h3>
+                                                <p class="text-orange-700" id="selectedExitProductInfo">Stock actuel: 0</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-2xl font-medium text-gray-700 mb-6">📊 Quantité à retirer</label>
+                                        <div class="flex items-center justify-center space-x-6">
+                                            <button type="button" onclick="adjustQuantity('quickExit', -10)" class="w-16 h-16 bg-gray-200 rounded-lg text-2xl font-bold hover:bg-gray-300 transition-colors">-10</button>
+                                            <button type="button" onclick="adjustQuantity('quickExit', -1)" class="w-16 h-16 bg-gray-200 rounded-lg text-2xl font-bold hover:bg-gray-300 transition-colors">-1</button>
+                                            <input type="number" id="quickExitQuantity" required min="1" value="1" class="quantity-input w-40 px-4 py-6 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                                            <button type="button" onclick="adjustQuantity('quickExit', 1)" class="w-16 h-16 bg-gray-200 rounded-lg text-2xl font-bold hover:bg-gray-300 transition-colors">+1</button>
+                                            <button type="button" onclick="adjustQuantity('quickExit', 10)" class="w-16 h-16 bg-gray-200 rounded-lg text-2xl font-bold hover:bg-gray-300 transition-colors">+10</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-xl font-medium text-gray-700 mb-4">📝 Motif rapide</label>
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <button type="button" onclick="selectQuickExitReason('Vente client')" class="quick-exit-reason-btn p-4 border-2 border-gray-300 rounded-lg hover:border-primary hover:bg-primary-light transition-all text-left">
+                                                <div class="font-medium">🛒 Vente</div>
+                                                <div class="text-sm text-gray-600">Vente client</div>
+                                            </button>
+                                            <button type="button" onclick="selectQuickExitReason('Commande en ligne')" class="quick-exit-reason-btn p-4 border-2 border-gray-300 rounded-lg hover:border-primary hover:bg-primary-light transition-all text-left">
+                                                <div class="font-medium">💻 En ligne</div>
+                                                <div class="text-sm text-gray-600">Commande web</div>
+                                            </button>
+                                            <button type="button" onclick="selectQuickExitReason('Transfert magasin')" class="quick-exit-reason-btn p-4 border-2 border-gray-300 rounded-lg hover:border-primary hover:bg-primary-light transition-all text-left">
+                                                <div class="font-medium">🏪 Transfert</div>
+                                                <div class="text-sm text-gray-600">Vers magasin</div>
+                                            </button>
+                                            <button type="button" onclick="selectQuickExitReason('Produit défectueux')" class="quick-exit-reason-btn p-4 border-2 border-gray-300 rounded-lg hover:border-primary hover:bg-primary-light transition-all text-left">
+                                                <div class="font-medium">❌ Défectueux</div>
+                                                <div class="text-sm text-gray-600">Article abîmé</div>
+                                            </button>
+                                        </div>
+                                        <input type="hidden" id="quickExitReason" value="Vente client">
+                                    </div>
+                                    
+                                    <div class="flex justify-center space-x-6 pt-8 border-t border-gray-200">
+                                        <button type="button" onclick="resetQuickExit()" class="px-8 py-4 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-xl font-medium">
+                                            🔄 Nouveau
+                                        </button>
+                                        <button type="submit" class="btn-warning text-white px-12 py-4 rounded-lg font-medium text-xl">
+                                            ⚠️ Retirer du Stock
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Entry Page (Employee Friendly) -->
+                <div id="quick-entryPage" class="page-content hidden">
+                    <div class="max-w-2xl mx-auto">
+                        <div class="flex items-center justify-between mb-8">
+                            <div>
+                                <h2 class="text-3xl font-bold text-gray-900">⚡ Entrée Rapide</h2>
+                                <p class="text-gray-600 mt-2">Ajout rapide d'articles au stock</p>
+                            </div>
+                            <div class="flex space-x-4" id="employeeNav">
+                                <button onclick="showPage('quick-entry')" class="btn-primary text-white px-6 py-3 rounded-lg font-medium">
+                                    ⚡ Entrée Rapide
+                                </button>
+                                <button onclick="showPage('quick-exit')" class="btn-secondary text-white px-6 py-3 rounded-lg font-medium">
+                                    ⚡ Sortie Rapide
+                                </button>
+                            </div>
+                            <button onclick="showPage('dashboard')" class="btn-secondary text-white px-6 py-3 rounded-lg font-medium" id="adminBackBtn">
+                                ← Retour
+                            </button>
+                        </div>
+                        
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
+                            <form id="quickEntryForm" class="space-y-8">
+                                <div>
+                                    <label class="block text-2xl font-medium text-gray-700 mb-6">🔍 Rechercher l'article</label>
+                                    <div class="relative">
+                                        <input type="text" id="quickEntrySearch" placeholder="Commencer à taper le nom..." class="w-full px-6 py-6 text-2xl border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" autocomplete="off">
+                                        <div id="quickEntryDropdown" class="absolute z-10 w-full bg-white border border-gray-300 rounded-lg shadow-lg mt-1 max-h-80 overflow-y-auto hidden">
+                                            <!-- Quick autocomplete options will be populated here -->
+                                        </div>
+                                        <input type="hidden" id="quickEntryProduct" required>
+                                    </div>
+                                </div>
+                                
+                                <div id="quickEntryDetails" class="hidden space-y-8">
+                                    <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                                        <div class="flex items-center mb-4">
+                                            <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                                </svg>
+                                            </div>
+                                            <div>
+                                                <h3 class="text-xl font-bold text-blue-900" id="selectedProductName">Article sélectionné</h3>
+                                                <p class="text-blue-700" id="selectedProductInfo">Stock actuel: 0</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-2xl font-medium text-gray-700 mb-6">📊 Quantité à ajouter</label>
+                                        <div class="flex items-center justify-center space-x-6">
+                                            <button type="button" onclick="adjustQuantity('quickEntry', -10)" class="w-16 h-16 bg-gray-200 rounded-lg text-2xl font-bold hover:bg-gray-300 transition-colors">-10</button>
+                                            <button type="button" onclick="adjustQuantity('quickEntry', -1)" class="w-16 h-16 bg-gray-200 rounded-lg text-2xl font-bold hover:bg-gray-300 transition-colors">-1</button>
+                                            <input type="number" id="quickEntryQuantity" required min="1" value="1" class="quantity-input w-40 px-4 py-6 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                                            <button type="button" onclick="adjustQuantity('quickEntry', 1)" class="w-16 h-16 bg-gray-200 rounded-lg text-2xl font-bold hover:bg-gray-300 transition-colors">+1</button>
+                                            <button type="button" onclick="adjustQuantity('quickEntry', 10)" class="w-16 h-16 bg-gray-200 rounded-lg text-2xl font-bold hover:bg-gray-300 transition-colors">+10</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div>
+                                        <label class="block text-xl font-medium text-gray-700 mb-4">📝 Motif rapide</label>
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <button type="button" onclick="selectQuickReason('Livraison fournisseur')" class="quick-reason-btn p-4 border-2 border-gray-300 rounded-lg hover:border-primary hover:bg-primary-light transition-all text-left">
+                                                <div class="font-medium">📦 Livraison</div>
+                                                <div class="text-sm text-gray-600">Réception fournisseur</div>
+                                            </button>
+                                            <button type="button" onclick="selectQuickReason('Retour client')" class="quick-reason-btn p-4 border-2 border-gray-300 rounded-lg hover:border-primary hover:bg-primary-light transition-all text-left">
+                                                <div class="font-medium">↩️ Retour</div>
+                                                <div class="text-sm text-gray-600">Retour client</div>
+                                            </button>
+                                            <button type="button" onclick="selectQuickReason('Correction inventaire')" class="quick-reason-btn p-4 border-2 border-gray-300 rounded-lg hover:border-primary hover:bg-primary-light transition-all text-left">
+                                                <div class="font-medium">🔧 Correction</div>
+                                                <div class="text-sm text-gray-600">Ajustement stock</div>
+                                            </button>
+                                            <button type="button" onclick="selectQuickReason('Production interne')" class="quick-reason-btn p-4 border-2 border-gray-300 rounded-lg hover:border-primary hover:bg-primary-light transition-all text-left">
+                                                <div class="font-medium">🏭 Production</div>
+                                                <div class="text-sm text-gray-600">Fabrication interne</div>
+                                            </button>
+                                        </div>
+                                        <input type="hidden" id="quickEntryReason" value="Livraison fournisseur">
+                                    </div>
+                                    
+                                    <div class="flex justify-center space-x-6 pt-8 border-t border-gray-200">
+                                        <button type="button" onclick="resetQuickEntry()" class="px-8 py-4 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-xl font-medium">
+                                            🔄 Nouveau
+                                        </button>
+                                        <button type="submit" class="btn-primary text-white px-12 py-4 rounded-lg font-medium text-xl">
+                                            ✅ Ajouter au Stock
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inventory Page -->
+                <div id="inventoryPage" class="page-content hidden">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-900">📋 Inventaire</h2>
+                            <p class="text-gray-600 mt-2">Vue d'ensemble de tous les articles</p>
+                        </div>
+                        <div class="flex space-x-4">
+                            <button onclick="showPage('dashboard')" class="btn-secondary text-white px-6 py-3 rounded-lg font-medium">
+                                ← Retour
+                            </button>
+                            <button id="addProductBtn" class="btn-primary text-white px-6 py-3 rounded-lg font-medium" style="display: none;">
+                                ➕ Nouvel Article
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Search and Filters -->
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-lg font-medium text-gray-700 mb-2">🔍 Rechercher</label>
+                                <input type="text" id="inventorySearch" placeholder="Nom de l'article..." class="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                            </div>
+                            <div>
+                                <label class="block text-lg font-medium text-gray-700 mb-2">📂 Catégorie</label>
+                                <select id="inventoryCategory" class="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    <option value="">Toutes les catégories</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-lg font-medium text-gray-700 mb-2">📊 État du stock</label>
+                                <select id="inventoryStatus" class="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                                    <option value="">Tous les états</option>
+                                    <option value="ok">✅ Stock OK</option>
+                                    <option value="low">⚠️ Stock faible</option>
+                                    <option value="out">❌ Rupture</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Inventory Grid -->
+                    <div id="inventoryGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <!-- Inventory items will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Reports Page (Admin Only) -->
+                <div id="reportsPage" class="page-content hidden">
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-900">📊 Rapports</h2>
+                            <p class="text-gray-600 mt-2">Analyses et statistiques</p>
+                        </div>
+                        <button onclick="showPage('dashboard')" class="btn-secondary text-white px-6 py-3 rounded-lg font-medium">
+                            ← Retour
+                        </button>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                            <h3 class="text-xl font-bold text-gray-900 mb-4">📈 Mouvements du jour</h3>
+                            <div id="dailyMovements" class="space-y-3">
+                                <!-- Daily movements will be populated here -->
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                            <h3 class="text-xl font-bold text-gray-900 mb-4">👥 Activité par utilisateur</h3>
+                            <div id="userActivity" class="space-y-3">
+                                <!-- User activity will be populated here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <h3 class="text-xl font-bold text-gray-900 mb-4">📋 Historique des mouvements</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase">Date</th>
+                                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase">Article</th>
+                                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase">Type</th>
+                                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase">Quantité</th>
+                                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase">Utilisateur</th>
+                                        <th class="px-6 py-3 text-left text-sm font-medium text-gray-500 uppercase">Motif</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="movementsHistory" class="bg-white divide-y divide-gray-200">
+                                    <!-- Movement history will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <!-- Product Modal (Admin Only) -->
+        <div id="productModal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop hidden items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-screen overflow-y-auto">
+                <div class="p-6 border-b border-gray-200">
+                    <div class="flex items-center justify-between">
+                        <h3 id="productModalTitle" class="text-2xl font-bold text-gray-900">➕ Nouvel Article</h3>
+                        <button id="closeProductModal" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <form id="productForm" class="p-6 space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-lg font-medium text-gray-700 mb-3">🏷️ Nom de l'article *</label>
+                            <input type="text" id="productName" required class="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-lg font-medium text-gray-700 mb-3">📂 Catégorie *</label>
+                            <select id="productCategory" required class="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                                <option value="">Sélectionner une catégorie</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div>
+                            <label class="block text-lg font-medium text-gray-700 mb-3">📊 Quantité initiale *</label>
+                            <input type="number" id="productQuantity" required min="0" class="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-lg font-medium text-gray-700 mb-3">💰 Prix unitaire (€)</label>
+                            <input type="number" id="productPrice" min="0" step="0.01" class="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-lg font-medium text-gray-700 mb-3">⚠️ Stock minimum</label>
+                            <input type="number" id="productMinStock" min="0" class="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-lg font-medium text-gray-700 mb-3">📝 Description</label>
+                        <textarea id="productDescription" rows="3" class="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"></textarea>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-4 pt-6 border-t border-gray-200">
+                        <button type="button" id="cancelProductModal" class="px-8 py-4 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-lg font-medium">
+                            Annuler
+                        </button>
+                        <button type="submit" class="btn-primary text-white px-8 py-4 rounded-lg font-medium text-lg">
+                            💾 Sauvegarder
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirmModal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop hidden items-center justify-center z-50 p-4">
+            <div class="bg-white rounded-xl shadow-xl w-full max-w-md">
+                <div class="p-6">
+                    <div class="flex items-center mb-6">
+                        <div class="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mr-4">
+                            <svg class="w-8 h-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900">⚠️ Confirmation</h3>
+                            <p id="confirmMessage" class="text-gray-600 mt-2">Êtes-vous sûr de vouloir effectuer cette action ?</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-end space-x-4">
+                        <button id="cancelConfirm" class="px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 text-lg font-medium">
+                            Annuler
+                        </button>
+                        <button id="confirmAction" class="btn-primary text-white px-6 py-3 rounded-lg font-medium text-lg">
+                            Confirmer
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Application State
+        let currentUser = null;
+        let currentPage = 'dashboard';
+        let products = [];
+        let categories = [];
+        let movements = [];
+        let currentProductId = null;
+        let confirmCallback = null;
+
+        // User roles and permissions
+        const users = {
+            admin: { name: 'Admin', role: 'Administrateur', permissions: ['all'] },
+            employee1: { name: 'Marie', role: 'Employée', permissions: ['quick-entry', 'quick-exit'] },
+            employee2: { name: 'Pierre', role: 'Employé', permissions: ['quick-entry', 'quick-exit'] }
+        };
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSampleData();
+            initializeApp();
+        });
+
+        function initializeApp() {
+            // Event listeners
+            document.getElementById('loginForm').addEventListener('submit', handleLogin);
+            document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+            
+            // Stock management
+            document.getElementById('stockEntryForm').addEventListener('submit', handleStockEntry);
+            document.getElementById('quickEntryForm').addEventListener('submit', handleQuickEntry);
+            document.getElementById('quickExitForm').addEventListener('submit', handleQuickExit);
+            
+            // Autocomplete functionality
+            setupAutocomplete('entryProductSearch', 'entryProductDropdown', 'entryProduct', 'all');
+            setupAutocomplete('quickEntrySearch', 'quickEntryDropdown', 'quickEntryProduct', 'all', true);
+            setupAutocomplete('quickExitSearch', 'quickExitDropdown', 'quickExitProduct', 'inStock', true, 'exit');
+            
+            // Product management (Admin only)
+            document.getElementById('addProductBtn').addEventListener('click', () => openProductModal());
+            document.getElementById('productForm').addEventListener('submit', handleProductSubmit);
+            document.getElementById('closeProductModal').addEventListener('click', closeProductModal);
+            document.getElementById('cancelProductModal').addEventListener('click', closeProductModal);
+            
+            // Search and filters
+            document.getElementById('inventorySearch').addEventListener('input', renderInventory);
+            document.getElementById('inventoryCategory').addEventListener('change', renderInventory);
+            document.getElementById('inventoryStatus').addEventListener('change', renderInventory);
+            
+            // Product selection change - removed reference to non-existent element
+            
+            // Confirmation modal
+            document.getElementById('cancelConfirm').addEventListener('click', closeConfirmModal);
+            document.getElementById('confirmAction').addEventListener('click', handleConfirmAction);
+            
+            // Close modals on backdrop click
+            document.getElementById('productModal').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) closeProductModal();
+            });
+            
+            document.getElementById('confirmModal').addEventListener('click', (e) => {
+                if (e.target === e.currentTarget) closeConfirmModal();
+            });
+            
+            // Close modals on Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeConfirmModal();
+                    closeProductModal();
+                }
+            });
+        }
+
+        function loadSampleData() {
+            // Sample categories
+            categories = [
+                { id: 1, name: 'Électronique', description: 'Appareils électroniques et accessoires' },
+                { id: 2, name: 'Vêtements', description: 'Vêtements et accessoires de mode' },
+                { id: 3, name: 'Alimentaire', description: 'Produits alimentaires et boissons' },
+                { id: 4, name: 'Maison', description: 'Articles pour la maison' },
+                { id: 5, name: 'Sport', description: 'Équipements sportifs' }
+            ];
+            
+            // Sample products with warehouse-appropriate items
+            products = [
+                { id: 1, name: 'Smartphone Samsung A54', category: 'Électronique', categoryId: 1, quantity: 45, price: 349.99, minStock: 10, description: 'Smartphone Android 128GB' },
+                { id: 2, name: 'Casque Bluetooth Sony', category: 'Électronique', categoryId: 1, quantity: 23, price: 89.99, minStock: 5, description: 'Casque sans fil avec réduction de bruit' },
+                { id: 3, name: 'T-shirt Coton Bio', category: 'Vêtements', categoryId: 2, quantity: 120, price: 24.99, minStock: 20, description: 'T-shirt unisexe 100% coton bio' },
+                { id: 4, name: 'Jean Denim Classic', category: 'Vêtements', categoryId: 2, quantity: 67, price: 59.99, minStock: 15, description: 'Jean coupe droite délavé' },
+                { id: 5, name: 'Café Arabica 1kg', category: 'Alimentaire', categoryId: 3, quantity: 89, price: 18.50, minStock: 25, description: 'Café en grains origine Colombie' },
+                { id: 6, name: 'Thé Vert Bio 100g', category: 'Alimentaire', categoryId: 3, quantity: 156, price: 12.99, minStock: 30, description: 'Thé vert biologique en vrac' },
+                { id: 7, name: 'Aspirateur Robot', category: 'Maison', categoryId: 4, quantity: 8, price: 299.99, minStock: 3, description: 'Robot aspirateur programmable' },
+                { id: 8, name: 'Lampe LED Bureau', category: 'Maison', categoryId: 4, quantity: 34, price: 45.99, minStock: 8, description: 'Lampe de bureau LED réglable' },
+                { id: 9, name: 'Ballon Football', category: 'Sport', categoryId: 5, quantity: 2, price: 29.99, minStock: 10, description: 'Ballon de football taille 5' },
+                { id: 10, name: 'Raquette Tennis', category: 'Sport', categoryId: 5, quantity: 0, price: 149.99, minStock: 5, description: 'Raquette de tennis professionnelle' }
+            ];
+            
+            // Sample movements
+            movements = [
+                { id: 1, productId: 1, productName: 'Smartphone Samsung A54', type: 'entry', quantity: 50, reason: 'Livraison fournisseur', user: 'Marie', date: new Date().toISOString(), comment: 'Commande #12345' },
+                { id: 2, productId: 3, productName: 'T-shirt Coton Bio', type: 'exit', quantity: 15, reason: 'Vente client', user: 'Pierre', date: new Date(Date.now() - 86400000).toISOString(), comment: 'Commande magasin' },
+                { id: 3, productId: 5, productName: 'Café Arabica 1kg', type: 'entry', quantity: 100, reason: 'Livraison fournisseur', user: 'Admin', date: new Date(Date.now() - 172800000).toISOString(), comment: 'Réapprovisionnement mensuel' }
+            ];
+            
+            updateDashboard();
+            populateSelects();
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const selectedUser = document.getElementById('loginUser').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            // Simple demo authentication
+            const validPasswords = {
+                admin: '1234',
+                employee1: '0000',
+                employee2: '0000'
+            };
+            
+            if (selectedUser && validPasswords[selectedUser] === password) {
+                currentUser = { id: selectedUser, ...users[selectedUser] };
+                document.getElementById('loginPage').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                
+                // Update user info in header
+                document.getElementById('userName').textContent = currentUser.name;
+                document.getElementById('userRole').textContent = currentUser.role;
+                document.getElementById('userInitial').textContent = currentUser.name.charAt(0);
+                
+                // Show/hide admin features
+                updateUIForRole();
+                showPage('dashboard');
+                
+                // Ensure data is loaded and UI is updated
+                populateSelects();
+                updateDashboard();
+                
+                showNotification(`Bienvenue ${currentUser.name} ! 👋`, 'success');
+            } else {
+                showNotification('Code d\'accès incorrect ❌', 'error');
+            }
+        }
+
+        function updateUIForRole() {
+            const isAdmin = currentUser.permissions.includes('all');
+            
+            if (isAdmin) {
+                // Admin sees dashboard with all buttons
+                document.getElementById('addProductBtn').style.display = 'block';
+                showPage('dashboard');
+            } else {
+                // Employees go directly to quick entry page - no dashboard
+                document.getElementById('addProductBtn').style.display = 'none';
+                showPage('quick-entry');
+            }
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            document.getElementById('loginPage').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginUser').value = '';
+            document.getElementById('loginPassword').value = '';
+        }
+
+        function showPage(page) {
+            // Check permissions
+            if (!hasPermission(page)) {
+                showNotification('Accès non autorisé ⛔', 'error');
+                return;
+            }
+            
+            currentPage = page;
+            
+            // Hide all pages
+            document.querySelectorAll('.page-content').forEach(pageEl => {
+                pageEl.classList.add('hidden');
+            });
+            
+            // Show selected page
+            const pageElement = document.getElementById(page + 'Page');
+            if (pageElement) {
+                pageElement.classList.remove('hidden');
+                pageElement.classList.add('fade-in');
+                
+                // Update navigation visibility based on user role
+                const isAdmin = currentUser && currentUser.permissions.includes('all');
+                
+                // Show/hide navigation elements
+                const employeeNav = document.getElementById('employeeNav');
+                const employeeNavExit = document.getElementById('employeeNavExit');
+                const adminBackBtn = document.getElementById('adminBackBtn');
+                const adminBackBtnExit = document.getElementById('adminBackBtnExit');
+                
+                if (page === 'quick-entry') {
+                    if (employeeNav) employeeNav.style.display = isAdmin ? 'none' : 'flex';
+                    if (adminBackBtn) adminBackBtn.style.display = isAdmin ? 'block' : 'none';
+                } else if (page === 'quick-exit') {
+                    if (employeeNavExit) employeeNavExit.style.display = isAdmin ? 'none' : 'flex';
+                    if (adminBackBtnExit) adminBackBtnExit.style.display = isAdmin ? 'block' : 'none';
+                }
+                
+                // Update page-specific content
+                if (page === 'dashboard') {
+                    updateDashboard();
+                } else if (page === 'inventory') {
+                    renderInventory();
+                } else if (page === 'reports') {
+                    renderReports();
+                } else if (page === 'stock-entry' || page === 'stock-exit') {
+                    populateProductSelects();
+                } else if (page === 'quick-entry') {
+                    resetQuickEntry();
+                    setTimeout(() => {
+                        document.getElementById('quickEntrySearch').focus();
+                    }, 100);
+                } else if (page === 'quick-exit') {
+                    resetQuickExit();
+                    setTimeout(() => {
+                        document.getElementById('quickExitSearch').focus();
+                    }, 100);
+                }
+            }
+        }
+
+        function hasPermission(page) {
+            if (!currentUser) return false;
+            if (currentUser.permissions.includes('all')) return true;
+            return currentUser.permissions.includes(page);
+        }
+
+        function updateDashboard() {
+            const totalProducts = products.length;
+            const inStockProducts = products.filter(p => p.quantity > p.minStock).length;
+            const lowStockProducts = products.filter(p => p.quantity <= p.minStock && p.quantity > 0).length;
+            const outOfStockProducts = products.filter(p => p.quantity === 0).length;
+            
+            document.getElementById('totalProducts').textContent = totalProducts;
+            document.getElementById('inStockProducts').textContent = inStockProducts;
+            document.getElementById('lowStockProducts').textContent = lowStockProducts;
+            document.getElementById('outOfStockProducts').textContent = outOfStockProducts;
+            
+            // Update alerts badge
+            const alertsCount = lowStockProducts + outOfStockProducts;
+            document.getElementById('alertsBadge').textContent = alertsCount;
+            
+            // Show/hide alerts container based on count
+            const alertsContainer = document.getElementById('alertsContainer');
+            if (alertsCount === 0) {
+                alertsContainer.style.display = 'none';
+            } else {
+                alertsContainer.style.display = 'block';
+            }
+            
+            // Stock alerts
+            const stockAlerts = document.getElementById('stockAlerts');
+            const alertItems = products.filter(p => p.quantity <= p.minStock);
+            
+            if (alertItems.length === 0) {
+                stockAlerts.innerHTML = '<p class="text-gray-500 text-center py-4">✅ Aucune alerte de stock</p>';
+            } else {
+                stockAlerts.innerHTML = alertItems.map(product => {
+                    const isOutOfStock = product.quantity === 0;
+                    return `
+                        <div class="flex items-center justify-between p-4 ${isOutOfStock ? 'bg-red-50 border border-red-200 stock-critical' : 'bg-yellow-50 border border-yellow-200'} rounded-lg">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 ${isOutOfStock ? 'bg-red-500' : 'bg-yellow-500'} rounded-full mr-3"></div>
+                                <div>
+                                    <p class="font-medium text-gray-900">${product.name}</p>
+                                    <p class="text-sm text-gray-600">Stock: ${product.quantity} (Min: ${product.minStock})</p>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 ${isOutOfStock ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'} text-sm rounded-full font-medium">
+                                ${isOutOfStock ? '❌ Rupture' : '⚠️ Faible'}
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // Recent activities
+            const recentActivities = document.getElementById('recentActivities');
+            const recentMovements = movements.slice(-5).reverse();
+            
+            if (recentMovements.length === 0) {
+                recentActivities.innerHTML = '<p class="text-gray-500 text-center py-4">Aucune activité récente</p>';
+            } else {
+                recentActivities.innerHTML = recentMovements.map(movement => {
+                    const isEntry = movement.type === 'entry';
+                    const timeAgo = getTimeAgo(new Date(movement.date));
+                    
+                    return `
+                        <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                            <div class="w-10 h-10 ${isEntry ? 'bg-green-100' : 'bg-blue-100'} rounded-full flex items-center justify-center">
+                                <svg class="w-5 h-5 ${isEntry ? 'text-green-600' : 'text-blue-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isEntry ? 'M12 6v6m0 0v6m0-6h6m-6 0H6' : 'M12 14l-4-4m0 0l4-4m-4 4h12'}"></path>
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-900">
+                                    ${isEntry ? '📦' : '📤'} ${movement.productName}
+                                </p>
+                                <p class="text-xs text-gray-500">
+                                    ${isEntry ? '+' : '-'}${movement.quantity} • ${movement.user} • ${timeAgo}
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        function populateSelects() {
+            populateCategorySelects();
+            populateProductSelects();
+        }
+
+        function populateCategorySelects() {
+            const selects = [
+                document.getElementById('productCategory'),
+                document.getElementById('inventoryCategory')
+            ];
+            
+            selects.forEach(select => {
+                if (!select) return; // Skip if element doesn't exist
+                
+                if (select.id === 'inventoryCategory') {
+                    select.innerHTML = '<option value="">Toutes les catégories</option>';
+                } else {
+                    select.innerHTML = '<option value="">Sélectionner une catégorie</option>';
+                }
+                
+                categories.forEach(category => {
+                    select.innerHTML += `<option value="${category.id}">${category.name}</option>`;
+                });
+            });
+        }
+
+        function populateProductSelects() {
+            const entrySelect = document.getElementById('entryProduct');
+            const exitSelect = document.getElementById('exitProduct');
+            
+            // Entry: all products
+            if (entrySelect) {
+                entrySelect.innerHTML = '<option value="">Sélectionner un article</option>';
+                products.forEach(product => {
+                    entrySelect.innerHTML += `<option value="${product.id}">${product.name} (Stock: ${product.quantity})</option>`;
+                });
+            }
+            
+            // Exit: only products with stock > 0
+            if (exitSelect) {
+                exitSelect.innerHTML = '<option value="">Sélectionner un article</option>';
+                products.filter(p => p.quantity > 0).forEach(product => {
+                    exitSelect.innerHTML += `<option value="${product.id}">${product.name} (Stock: ${product.quantity})</option>`;
+                });
+            }
+        }
+
+        // Function updateCurrentStock removed - was referencing non-existent elements
+
+        function adjustQuantity(type, delta) {
+            const input = document.getElementById(type + 'Quantity');
+            const currentValue = parseInt(input.value) || 0;
+            const newValue = Math.max(1, currentValue + delta);
+            
+            if (type === 'exit' || type === 'quickExit') {
+                const maxValue = parseInt(input.max) || Infinity;
+                input.value = Math.min(newValue, maxValue);
+            } else {
+                input.value = newValue;
+            }
+        }
+
+        function handleStockEntry(e) {
+            e.preventDefault();
+            
+            const productId = parseInt(document.getElementById('entryProduct').value);
+            const quantity = parseInt(document.getElementById('entryQuantity').value);
+            const reason = document.getElementById('entryReason').value;
+            const comment = document.getElementById('entryComment').value;
+            
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            showConfirmModal(
+                `Confirmer l'entrée de ${quantity} unités de "${product.name}" ?`,
+                () => {
+                    // Update product quantity
+                    product.quantity += quantity;
+                    
+                    // Add movement record
+                    const movement = {
+                        id: movements.length + 1,
+                        productId: productId,
+                        productName: product.name,
+                        type: 'entry',
+                        quantity: quantity,
+                        reason: reason,
+                        user: currentUser.name,
+                        date: new Date().toISOString(),
+                        comment: comment
+                    };
+                    movements.push(movement);
+                    
+                    // Reset form
+                    document.getElementById('stockEntryForm').reset();
+                    
+                    // Update UI
+                    updateDashboard();
+                    populateProductSelects();
+                    
+                    showNotification(`✅ Entrée enregistrée: +${quantity} ${product.name}`, 'success');
+                    
+                    // Redirect based on user role
+                    if (currentUser.permissions.includes('all')) {
+                        showPage('dashboard');
+                    } else {
+                        showPage('quick-entry');
+                    }
+                }
+            );
+        }
+
+        function handleQuickExit(e) {
+            e.preventDefault();
+            
+            const productId = parseInt(document.getElementById('quickExitProduct').value);
+            const quantity = parseInt(document.getElementById('quickExitQuantity').value);
+            const reason = document.getElementById('quickExitReason').value;
+            
+            const product = products.find(p => p.id === productId);
+            if (!product || product.quantity < quantity) {
+                showNotification('❌ Stock insuffisant', 'error');
+                return;
+            }
+            
+            showConfirmModal(
+                `Confirmer le retrait de ${quantity} unités de "${product.name}" ?`,
+                () => {
+                    // Update product quantity
+                    product.quantity -= quantity;
+                    
+                    // Add movement record
+                    const movement = {
+                        id: movements.length + 1,
+                        productId: productId,
+                        productName: product.name,
+                        type: 'exit',
+                        quantity: quantity,
+                        reason: reason,
+                        user: currentUser.name,
+                        date: new Date().toISOString(),
+                        comment: 'Sortie rapide'
+                    };
+                    movements.push(movement);
+                    
+                    // Reset form
+                    resetQuickExit();
+                    
+                    // Update UI
+                    updateDashboard();
+                    
+                    showNotification(`✅ Retiré avec succès: -${quantity} ${product.name}`, 'success');
+                    
+                    // Focus back on search for next exit
+                    setTimeout(() => {
+                        document.getElementById('quickExitSearch').focus();
+                    }, 100);
+                }
+            );
+        }
+
+        function renderInventory() {
+            const searchTerm = document.getElementById('inventorySearch').value.toLowerCase();
+            const categoryFilter = document.getElementById('inventoryCategory').value;
+            const statusFilter = document.getElementById('inventoryStatus').value;
+            
+            let filteredProducts = products.filter(product => {
+                const matchesSearch = product.name.toLowerCase().includes(searchTerm);
+                const matchesCategory = !categoryFilter || product.categoryId.toString() === categoryFilter;
+                
+                let matchesStatus = true;
+                if (statusFilter === 'ok') {
+                    matchesStatus = product.quantity > product.minStock;
+                } else if (statusFilter === 'low') {
+                    matchesStatus = product.quantity <= product.minStock && product.quantity > 0;
+                } else if (statusFilter === 'out') {
+                    matchesStatus = product.quantity === 0;
+                }
+                
+                return matchesSearch && matchesCategory && matchesStatus;
+            });
+            
+            const grid = document.getElementById('inventoryGrid');
+            grid.innerHTML = filteredProducts.map(product => {
+                const stockStatus = getStockStatus(product);
+                const isAdmin = currentUser.permissions.includes('all');
+                
+                return `
+                    <div class="card bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <div class="flex items-start justify-between mb-4">
+                            <div class="flex-1">
+                                <h3 class="text-lg font-bold text-gray-900 mb-2">${product.name}</h3>
+                                <p class="text-sm text-gray-600 mb-2">${product.description || ''}</p>
+                                <span class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded-full">
+                                    ${product.category}
+                                </span>
+                            </div>
+                            ${isAdmin ? `
+                                <button onclick="editProduct(${product.id})" class="p-2 text-gray-400 hover:text-primary">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                    </svg>
+                                </button>
+                            ` : ''}
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">📊 Stock actuel:</span>
+                                <span class="text-2xl font-bold text-gray-900">${product.quantity}</span>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm text-gray-600">⚠️ Stock minimum:</span>
+                                <span class="text-sm font-medium text-gray-700">${product.minStock}</span>
+                            </div>
+                            
+                            ${product.price ? `
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">💰 Prix unitaire:</span>
+                                    <span class="text-sm font-medium text-gray-700">${product.price.toFixed(2)} €</span>
+                                </div>
+                            ` : ''}
+                            
+                            <div class="pt-3 border-t border-gray-200">
+                                <span class="px-3 py-1 text-sm font-medium rounded-full ${stockStatus.class}">
+                                    ${stockStatus.text}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            if (filteredProducts.length === 0) {
+                grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">Aucun article trouvé</div>';
+            }
+        }
+
+        function getStockStatus(product) {
+            if (product.quantity === 0) {
+                return { text: '❌ Rupture de stock', class: 'bg-red-100 text-red-800' };
+            } else if (product.quantity <= product.minStock) {
+                return { text: '⚠️ Stock faible', class: 'bg-yellow-100 text-yellow-800' };
+            } else {
+                return { text: '✅ Stock OK', class: 'bg-green-100 text-green-800' };
+            }
+        }
+
+        function renderReports() {
+            if (!hasPermission('reports')) return;
+            
+            // Daily movements
+            const today = new Date().toDateString();
+            const todayMovements = movements.filter(m => new Date(m.date).toDateString() === today);
+            
+            const dailyMovementsDiv = document.getElementById('dailyMovements');
+            if (todayMovements.length === 0) {
+                dailyMovementsDiv.innerHTML = '<p class="text-gray-500 text-center py-4">Aucun mouvement aujourd\'hui</p>';
+            } else {
+                const entries = todayMovements.filter(m => m.type === 'entry').reduce((sum, m) => sum + m.quantity, 0);
+                const exits = todayMovements.filter(m => m.type === 'exit').reduce((sum, m) => sum + m.quantity, 0);
+                
+                dailyMovementsDiv.innerHTML = `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="text-center p-4 bg-green-50 rounded-lg">
+                            <p class="text-2xl font-bold text-green-600">+${entries}</p>
+                            <p class="text-sm text-green-700">Entrées</p>
+                        </div>
+                        <div class="text-center p-4 bg-blue-50 rounded-lg">
+                            <p class="text-2xl font-bold text-blue-600">-${exits}</p>
+                            <p class="text-sm text-blue-700">Sorties</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            // User activity
+            const userActivityDiv = document.getElementById('userActivity');
+            const userStats = {};
+            movements.forEach(movement => {
+                if (!userStats[movement.user]) {
+                    userStats[movement.user] = { entries: 0, exits: 0 };
+                }
+                if (movement.type === 'entry') {
+                    userStats[movement.user].entries++;
+                } else {
+                    userStats[movement.user].exits++;
+                }
+            });
+            
+            userActivityDiv.innerHTML = Object.entries(userStats).map(([user, stats]) => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <span class="font-medium text-gray-900">👤 ${user}</span>
+                    <div class="text-sm text-gray-600">
+                        📦 ${stats.entries} entrées • 📤 ${stats.exits} sorties
+                    </div>
+                </div>
+            `).join('');
+            
+            // Movement history
+            const historyTable = document.getElementById('movementsHistory');
+            historyTable.innerHTML = movements.slice(-20).reverse().map(movement => {
+                const date = new Date(movement.date);
+                const isEntry = movement.type === 'entry';
+                
+                return `
+                    <tr>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ${movement.productName}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <span class="px-2 py-1 text-xs font-medium rounded-full ${isEntry ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}">
+                                ${isEntry ? '📦 Entrée' : '📤 Sortie'}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ${isEntry ? '+' : '-'}${movement.quantity}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ${movement.user}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            ${movement.reason}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Product Management (Admin only)
+        function openProductModal(productId = null) {
+            if (!hasPermission('all')) return;
+            
+            currentProductId = productId;
+            const modal = document.getElementById('productModal');
+            const title = document.getElementById('productModalTitle');
+            const form = document.getElementById('productForm');
+            
+            if (productId) {
+                const product = products.find(p => p.id === productId);
+                title.textContent = '✏️ Modifier l\'Article';
+                
+                document.getElementById('productName').value = product.name;
+                document.getElementById('productCategory').value = product.categoryId;
+                document.getElementById('productQuantity').value = product.quantity;
+                document.getElementById('productPrice').value = product.price || '';
+                document.getElementById('productMinStock').value = product.minStock;
+                document.getElementById('productDescription').value = product.description || '';
+            } else {
+                title.textContent = '➕ Nouvel Article';
+                form.reset();
+            }
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeProductModal() {
+            document.getElementById('productModal').classList.add('hidden');
+            document.getElementById('productModal').classList.remove('flex');
+            currentProductId = null;
+        }
+
+        function handleProductSubmit(e) {
+            e.preventDefault();
+            
+            const formData = {
+                name: document.getElementById('productName').value,
+                categoryId: parseInt(document.getElementById('productCategory').value),
+                quantity: parseInt(document.getElementById('productQuantity').value),
+                price: parseFloat(document.getElementById('productPrice').value) || 0,
+                minStock: parseInt(document.getElementById('productMinStock').value) || 0,
+                description: document.getElementById('productDescription').value
+            };
+            
+            const category = categories.find(c => c.id === formData.categoryId);
+            formData.category = category.name;
+            
+            if (currentProductId) {
+                const index = products.findIndex(p => p.id === currentProductId);
+                products[index] = { ...products[index], ...formData };
+                showNotification('✅ Article modifié avec succès', 'success');
+            } else {
+                const newProduct = {
+                    id: Math.max(...products.map(p => p.id), 0) + 1,
+                    ...formData
+                };
+                products.push(newProduct);
+                showNotification('✅ Article ajouté avec succès', 'success');
+            }
+            
+            closeProductModal();
+            updateDashboard();
+            populateSelects();
+            if (currentPage === 'inventory') {
+                renderInventory();
+            }
+        }
+
+        function editProduct(productId) {
+            openProductModal(productId);
+        }
+
+        // Utility functions
+        function showConfirmModal(message, callback) {
+            document.getElementById('confirmMessage').textContent = message;
+            confirmCallback = callback;
+            document.getElementById('confirmModal').classList.remove('hidden');
+            document.getElementById('confirmModal').classList.add('flex');
+        }
+
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirmModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            confirmCallback = null;
+        }
+
+        function handleConfirmAction() {
+            if (confirmCallback) {
+                const callback = confirmCallback;
+                confirmCallback = null; // Clear callback before execution
+                
+                try {
+                    callback(); // Execute the action first
+                } catch (error) {
+                    console.error('Error in confirmation callback:', error);
+                    showNotification('Une erreur est survenue lors de l\'exécution de l\'action', 'error');
+                } finally {
+                    closeConfirmModal(); // Always close modal, even if there's an error
+                }
+            } else {
+                closeConfirmModal();
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm fade-in ${
+                type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+                type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+                'bg-blue-100 text-blue-800 border border-blue-200'
+            }`;
+            
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <div class="flex-1">
+                        <p class="text-sm font-medium">${message}</p>
+                    </div>
+                    <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-gray-400 hover:text-gray-600">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+
+        function getTimeAgo(date) {
+            const now = new Date();
+            const diffInSeconds = Math.floor((now - date) / 1000);
+            
+            if (diffInSeconds < 60) return 'À l\'instant';
+            if (diffInSeconds < 3600) return `Il y a ${Math.floor(diffInSeconds / 60)} min`;
+            if (diffInSeconds < 86400) return `Il y a ${Math.floor(diffInSeconds / 3600)} h`;
+            return `Il y a ${Math.floor(diffInSeconds / 86400)} jour(s)`;
+        }
+
+        // Autocomplete functionality
+        function setupAutocomplete(searchInputId, dropdownId, hiddenInputId, filterType, isQuickEntry = false, entryType = 'entry') {
+            const searchInput = document.getElementById(searchInputId);
+            const dropdown = document.getElementById(dropdownId);
+            const hiddenInput = document.getElementById(hiddenInputId);
+            
+            searchInput.addEventListener('input', function() {
+                const query = this.value.toLowerCase().trim();
+                
+                if (query.length < 1) {
+                    dropdown.classList.add('hidden');
+                    hiddenInput.value = '';
+                    if (isQuickEntry) {
+                        document.getElementById('quickEntryDetails').classList.add('hidden');
+                    }
+                    return;
+                }
+                
+                let filteredProducts = products.filter(product => {
+                    const matchesQuery = product.name.toLowerCase().includes(query);
+                    if (filterType === 'inStock') {
+                        return matchesQuery && product.quantity > 0;
+                    }
+                    return matchesQuery;
+                });
+                
+                if (filteredProducts.length === 0) {
+                    dropdown.innerHTML = '<div class="p-4 text-gray-500 text-center">Aucun article trouvé</div>';
+                } else {
+                    dropdown.innerHTML = filteredProducts.map(product => {
+                        const stockStatus = product.quantity === 0 ? '❌ Rupture' : 
+                                          product.quantity <= product.minStock ? '⚠️ Stock faible' : '✅ Stock OK';
+                        const stockColor = product.quantity === 0 ? 'text-red-600' : 
+                                         product.quantity <= product.minStock ? 'text-yellow-600' : 'text-green-600';
+                        
+                        return `
+                            <div class="p-4 hover:bg-gray-50 cursor-pointer border-b border-gray-100 autocomplete-item" data-id="${product.id}" data-name="${product.name}">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <div class="font-medium text-gray-900">${product.name}</div>
+                                        <div class="text-sm text-gray-600">${product.category}</div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="font-medium text-gray-900">Stock: ${product.quantity}</div>
+                                        <div class="text-xs ${stockColor}">${stockStatus}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+                
+                dropdown.classList.remove('hidden');
+                
+                // Add click handlers to autocomplete items
+                dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const productId = this.dataset.id;
+                        const productName = this.dataset.name;
+                        
+                        searchInput.value = productName;
+                        hiddenInput.value = productId;
+                        dropdown.classList.add('hidden');
+                        
+                        if (isQuickEntry) {
+                            if (entryType === 'exit') {
+                                showQuickExitDetails(parseInt(productId));
+                            } else {
+                                showQuickEntryDetails(parseInt(productId));
+                            }
+                        }
+                        
+                        // Removed reference to non-existent exitProductSearch
+                    });
+                });
+            });
+            
+            // Hide dropdown when clicking outside
+            document.addEventListener('click', function(e) {
+                if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                    dropdown.classList.add('hidden');
+                }
+            });
+        }
+
+        // Quick Entry Functions
+        function showQuickEntryDetails(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            document.getElementById('selectedProductName').textContent = product.name;
+            document.getElementById('selectedProductInfo').textContent = `Stock actuel: ${product.quantity} • Catégorie: ${product.category}`;
+            document.getElementById('quickEntryDetails').classList.remove('hidden');
+            
+            // Reset quantity and reason
+            document.getElementById('quickEntryQuantity').value = 1;
+            selectQuickReason('Livraison fournisseur');
+        }
+
+        function selectQuickReason(reason) {
+            document.getElementById('quickEntryReason').value = reason;
+            
+            // Update button styles
+            document.querySelectorAll('.quick-reason-btn').forEach(btn => {
+                btn.classList.remove('border-primary', 'bg-primary-light');
+                btn.classList.add('border-gray-300');
+                
+                // Check if this button matches the selected reason
+                if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(reason)) {
+                    btn.classList.remove('border-gray-300');
+                    btn.classList.add('border-primary', 'bg-primary-light');
+                }
+            });
+        }
+
+        function resetQuickEntry() {
+            document.getElementById('quickEntrySearch').value = '';
+            document.getElementById('quickEntryProduct').value = '';
+            document.getElementById('quickEntryQuantity').value = 1;
+            document.getElementById('quickEntryDetails').classList.add('hidden');
+            selectQuickReason('Livraison fournisseur');
+        }
+
+        function handleQuickEntry(e) {
+            e.preventDefault();
+            
+            const productId = parseInt(document.getElementById('quickEntryProduct').value);
+            const quantity = parseInt(document.getElementById('quickEntryQuantity').value);
+            const reason = document.getElementById('quickEntryReason').value;
+            
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            showConfirmModal(
+                `Confirmer l'ajout de ${quantity} unités de "${product.name}" ?`,
+                () => {
+                    // Update product quantity
+                    product.quantity += quantity;
+                    
+                    // Add movement record
+                    const movement = {
+                        id: movements.length + 1,
+                        productId: productId,
+                        productName: product.name,
+                        type: 'entry',
+                        quantity: quantity,
+                        reason: reason,
+                        user: currentUser.name,
+                        date: new Date().toISOString(),
+                        comment: 'Entrée rapide'
+                    };
+                    movements.push(movement);
+                    
+                    // Reset form
+                    resetQuickEntry();
+                    
+                    // Update UI
+                    updateDashboard();
+                    
+                    showNotification(`✅ Ajouté avec succès: +${quantity} ${product.name}`, 'success');
+                    
+                    // Focus back on search for next entry
+                    setTimeout(() => {
+                        document.getElementById('quickEntrySearch').focus();
+                    }, 100);
+                }
+            );
+        }
+
+        // Quick Exit Functions
+        function showQuickExitDetails(productId) {
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            document.getElementById('selectedExitProductName').textContent = product.name;
+            document.getElementById('selectedExitProductInfo').textContent = `Stock actuel: ${product.quantity} • Catégorie: ${product.category}`;
+            document.getElementById('quickExitDetails').classList.remove('hidden');
+            
+            // Reset quantity and reason
+            document.getElementById('quickExitQuantity').value = 1;
+            document.getElementById('quickExitQuantity').max = product.quantity;
+            selectQuickExitReason('Vente client');
+        }
+
+        function selectQuickExitReason(reason) {
+            document.getElementById('quickExitReason').value = reason;
+            
+            // Update button styles
+            document.querySelectorAll('.quick-exit-reason-btn').forEach(btn => {
+                btn.classList.remove('border-primary', 'bg-primary-light');
+                btn.classList.add('border-gray-300');
+                
+                // Check if this button matches the selected reason
+                if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(reason)) {
+                    btn.classList.remove('border-gray-300');
+                    btn.classList.add('border-primary', 'bg-primary-light');
+                }
+            });
+        }
+
+        function resetQuickExit() {
+            document.getElementById('quickExitSearch').value = '';
+            document.getElementById('quickExitProduct').value = '';
+            document.getElementById('quickExitQuantity').value = 1;
+            document.getElementById('quickExitDetails').classList.add('hidden');
+            selectQuickExitReason('Vente client');
+        }
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'96e19413b7b7e18f',t:'MTc1NTAxODU0NS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
