@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4Tek Inventory - Gestion d'Entrepôt</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        'primary-dark': '#2563EB',
+                        'primary-light': '#DBEAFE',
+                        secondary: '#059669',
+                        warning: '#F59E0B',
+                        danger: '#EF4444'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(-100%); }
+            to { transform: translateX(0); }
+        }
+        
+        .modal-backdrop {
+            backdrop-filter: blur(4px);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+            transition: all 0.2s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-secondary {
+            background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
+        }
+        
+        .card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .big-button {
+            min-height: 80px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .quantity-input {
+            font-size: 2rem;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .stock-critical {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        /* Responsive Design Improvements */
+        @media (max-width: 768px) {
+            .big-button {
+                min-height: 60px;
+                font-size: 1rem;
+            }
+            
+            .quantity-input {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans">
+    <!-- Login Page -->
+    <div id="loginPage" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div class="max-w-md w-full space-y-8">
+            <div class="text-center">
+                <div class="mx-auto h-20 w-20 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mb-6">
+                    <span class="text-white text-2xl font-bold">4T</span>
+                </div>
+                <h2 class="text-3xl font-bold text-gray-900 mb-2">4Tek Inventory</h2>
+                <p class="text-gray-600">Gestion d'Entrepôt</p>
+            </div>
+            
+            <form onsubmit="handleLogin(event)" class="bg-white rounded-xl shadow-lg p-8 space-y-6">
+                <div>
+                    <label for="loginUser" class="block text-sm font-medium text-gray-700 mb-2">Utilisateur</label>
+                    <select id="loginUser" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent">
+                        <option value="">Sélectionner un utilisateur</option>
+                        <option value="admin">Admin</option>
+                        <option value="employee1">Marie (Employée)</option>
+                        <option value="employee2">Pierre (Employé)</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="loginPassword" class="block text-sm font-medium text-gray-700 mb-2">Code d'accès</label>
+                    <input type="password" id="loginPassword" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Entrez votre code">
+                </div>
+                
+                <button type="submit" class="w-full btn-primary text-white py-3 rounded-lg font-medium">
+                    Se connecter
+                </button>
+            </form>
+            
+            <div class="text-center text-sm text-gray-500">
+                <p>Codes d'accès:</p>
+                <p>Admin: 1234 | Employés: 0000</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="mainApp" class="hidden min-h-screen bg-gray-50">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center space-x-4">
+                        <button id="mobileMenuBtn" onclick="toggleMobileMenu()" class="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-500">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                            </svg>
+                        </button>
+                        <h1 class="text-xl font-bold text-gray-900">4Tek Inventory</h1>
+                    </div>
+                    
+                    <div class="flex items-center space-x-4">
+                        <div class="hidden sm:flex items-center space-x-2 text-sm text-gray-600">
+                            <span id="userName"></span>
+                            <span>•</span>
+                            <span id="userRole"></span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                                <span id="userInitial" class="text-white text-sm font-medium"></span>
+                            </div>
+                            <button onclick="handleLogout()" class="text-gray-400 hover:text-gray-600">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="flex">
+            <!-- Sidebar -->
+            <nav class="sidebar fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white shadow-lg lg:shadow-none transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out">
+                <div class="flex flex-col h-full">
+                    <div class="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+                        <nav class="mt-5 flex-1 px-2 space-y-1">
+                            <button onclick="showPage('dashboard')" class="nav-item group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left">
+                                <svg class="mr-3 h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v6H8V5z"></path>
+                                </svg>
+                                Tableau de bord
+                            </button>
+                            
+                            <button onclick="showPage('quick-entry')" class="nav-item group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left">
+                                <svg class="mr-3 h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                                Entrée rapide
+                            </button>
+                            
+                            <button onclick="showPage('quick-exit')" class="nav-item group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left">
+                                <svg class="mr-3 h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                </svg>
+                                Sortie rapide
+                            </button>
+                            
+                            <button onclick="showPage('inventory')" class="nav-item group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left">
+                                <svg class="mr-3 h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                </svg>
+                                Inventaire
+                            </button>
+                            
+                            <button onclick="showPage('movements')" class="nav-item group flex items-center px-2 py-2 text-sm font-medium rounded-md w-full text-left">
+                                <svg class="mr-3 h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                </svg>
+                                Mouvements
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="flex-1 lg:ml-0">
+                <!-- Dashboard Page -->
+                <div id="dashboardPage" class="page-content p-6">
+                    <div class="max-w-7xl mx-auto">
+                        <div class="flex items-center justify-between mb-8">
+                            <h2 class="text-2xl font-bold text-gray-900">Tableau de bord</h2>
+                            <button id="addProductBtn" class="btn-primary text-white px-4 sm:px-6 py-2 sm:py-3 rounded-lg font-medium text-sm sm:text-base" style="display: none;">
+                                ➕ Nouvel Article
+                            </button>
+                        </div>
+                        
+                        <!-- Stats Cards -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                            <div class="card bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-blue-100 rounded-lg">
+                                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-4">
+                                        <p class="text-sm font-medium text-gray-600">Total Articles</p>
+                                        <p id="totalProducts" class="text-2xl font-bold text-gray-900">0</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-yellow-100 rounded-lg">
+                                        <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-4">
+                                        <p class="text-sm font-medium text-gray-600">Stock Faible</p>
+                                        <p id="lowStockProducts" class="text-2xl font-bold text-gray-900">0</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-red-100 rounded-lg">
+                                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-4">
+                                        <p class="text-sm font-medium text-gray-600">Rupture</p>
+                                        <p id="outOfStockProducts" class="text-2xl font-bold text-gray-900">0</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="card bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                                <div class="flex items-center">
+                                    <div class="p-3 bg-green-100 rounded-lg">
+                                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="ml-4">
+                                        <p class="text-sm font-medium text-gray-600">Valeur Totale</p>
+                                        <p id="totalValue" class="text-2xl font-bold text-gray-900">€0.00</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Actions -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            <button onclick="showPage('quick-entry')" class="big-button btn-primary text-white rounded-xl shadow-sm border-0 flex items-center justify-center space-x-3">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                </svg>
+                                <span>Entrée Rapide</span>
+                            </button>
+                            
+                            <button onclick="showPage('quick-exit')" class="big-button btn-secondary text-white rounded-xl shadow-sm border-0 flex items-center justify-center space-x-3">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path>
+                                </svg>
+                                <span>Sortie Rapide</span>
+                            </button>
+                        </div>
+                        
+                        <!-- Recent Movements -->
+                        <div class="card bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                            <h3 class="text-lg font-bold text-gray-900 mb-4">Mouvements Récents</h3>
+                            <div id="recentMovements" class="space-y-2">
+                                <!-- Recent movements will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Other pages will be added here... -->
+            </main>
+        </div>
+    </div>
+
+    <!-- Include the API integration script -->
+    <script src="api_integration.js"></script>
+    
+    <script>
+        // Application State
+        let currentUser = null;
+        let currentPage = 'dashboard';
+        let products = [];
+        let categories = [];
+        let movements = [];
+        let currentProductId = null;
+        let confirmCallback = null;
+
+        // User roles and permissions
+        const users = {
+            admin: { name: 'Admin', role: 'Administrateur', permissions: ['all'] },
+            employee1: { name: 'Marie', role: 'Employée', permissions: ['quick-entry', 'quick-exit'] },
+            employee2: { name: 'Pierre', role: 'Employé', permissions: ['quick-entry', 'quick-exit'] }
+        };
+
+        // Initialize application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            checkPersistentLogin();
+        });
+
+        // Rest of the existing functions...
+        function checkPersistentLogin() {
+            const savedUser = localStorage.getItem('inventoryUser');
+            if (savedUser) {
+                try {
+                    const userData = JSON.parse(savedUser);
+                    if (users[userData.id]) {
+                        currentUser = { id: userData.id, ...users[userData.id] };
+                        document.getElementById('loginPage').classList.add('hidden');
+                        document.getElementById('mainApp').classList.remove('hidden');
+                        
+                        document.getElementById('userName').textContent = currentUser.name;
+                        document.getElementById('userRole').textContent = currentUser.role;
+                        document.getElementById('userInitial').textContent = currentUser.name.charAt(0);
+                        
+                        updateUIForRole();
+                        showPage('dashboard');
+                        
+                        populateSelects();
+                        updateDashboard();
+                        
+                        showNotification(`Bon retour ${currentUser.name} ! 👋`, 'success');
+                    }
+                } catch (error) {
+                    console.error('Error parsing saved user data:', error);
+                    localStorage.removeItem('inventoryUser');
+                }
+            }
+        }
+
+        function saveUserSession() {
+            if (currentUser) {
+                localStorage.setItem('inventoryUser', JSON.stringify({
+                    id: currentUser.id,
+                    name: currentUser.name,
+                    role: currentUser.role
+                }));
+            }
+        }
+
+        function clearUserSession() {
+            localStorage.removeItem('inventoryUser');
+        }
+
+        function toggleMobileMenu() {
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                sidebar.classList.toggle('open');
+            }
+        }
+
+        function closeMobileMenu() {
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) {
+                sidebar.classList.remove('open');
+            }
+        }
+
+        document.addEventListener('click', function(e) {
+            const sidebar = document.querySelector('.sidebar');
+            const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+            
+            if (sidebar && mobileMenuBtn && !sidebar.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+                closeMobileMenu();
+            }
+        });
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const selectedUser = document.getElementById('loginUser').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            const validPasswords = {
+                admin: '1234',
+                employee1: '0000',
+                employee2: '0000'
+            };
+            
+            if (selectedUser && validPasswords[selectedUser] === password) {
+                currentUser = { id: selectedUser, ...users[selectedUser] };
+                document.getElementById('loginPage').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                
+                document.getElementById('userName').textContent = currentUser.name;
+                document.getElementById('userRole').textContent = currentUser.role;
+                document.getElementById('userInitial').textContent = currentUser.name.charAt(0);
+                
+                updateUIForRole();
+                showPage('dashboard');
+                
+                populateSelects();
+                updateDashboard();
+                
+                saveUserSession();
+                
+                showNotification(`Bienvenue ${currentUser.name} ! 👋`, 'success');
+            } else {
+                showNotification('Code d\'accès incorrect ❌', 'error');
+            }
+        }
+
+        function updateUIForRole() {
+            const isAdmin = currentUser.permissions.includes('all');
+            
+            if (isAdmin) {
+                document.getElementById('addProductBtn').style.display = 'block';
+                showPage('dashboard');
+            } else {
+                document.getElementById('addProductBtn').style.display = 'none';
+                showPage('quick-entry');
+            }
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            clearUserSession();
+            document.getElementById('loginPage').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            document.getElementById('loginUser').value = '';
+            document.getElementById('loginPassword').value = '';
+        }
+
+        function showPage(page) {
+            currentPage = page;
+            
+            // Hide all pages
+            document.querySelectorAll('.page-content').forEach(p => p.classList.add('hidden'));
+            
+            // Show selected page
+            const pageElement = document.getElementById(page + 'Page');
+            if (pageElement) {
+                pageElement.classList.remove('hidden');
+            }
+            
+            // Update navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('bg-primary-light', 'text-primary');
+                item.classList.add('text-gray-600', 'hover:bg-gray-50', 'hover:text-gray-900');
+            });
+            
+            const activeNavItem = document.querySelector(`[onclick="showPage('${page}')"]`);
+            if (activeNavItem) {
+                activeNavItem.classList.remove('text-gray-600', 'hover:bg-gray-50', 'hover:text-gray-900');
+                activeNavItem.classList.add('bg-primary-light', 'text-primary');
+            }
+            
+            closeMobileMenu();
+            
+            // Update page-specific content
+            if (page === 'dashboard') {
+                updateDashboard();
+            } else if (page === 'inventory') {
+                renderInventory();
+            } else if (page === 'movements') {
+                renderMovements();
+            }
+        }
+
+        function populateSelects() {
+            // Populate category selects
+            const categorySelects = document.querySelectorAll('select[id*="Category"]');
+            categorySelects.forEach(select => {
+                select.innerHTML = '<option value="">Sélectionner une catégorie</option>';
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    select.appendChild(option);
+                });
+            });
+            
+            // Populate product selects
+            const productSelects = document.querySelectorAll('select[id*="Product"]');
+            productSelects.forEach(select => {
+                select.innerHTML = '<option value="">Sélectionner un produit</option>';
+                products.forEach(product => {
+                    const option = document.createElement('option');
+                    option.value = product.id;
+                    option.textContent = product.name;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        function hasPermission(permission) {
+            return currentUser && (currentUser.permissions.includes('all') || currentUser.permissions.includes(permission));
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm fade-in ${
+                type === 'success' ? 'bg-green-100 text-green-800 border border-green-200' :
+                type === 'error' ? 'bg-red-100 text-red-800 border border-red-200' :
+                'bg-blue-100 text-blue-800 border border-blue-200'
+            }`;
+            notification.textContent = message;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Add event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add product button event listener
+            const addProductBtn = document.getElementById('addProductBtn');
+            if (addProductBtn) {
+                addProductBtn.addEventListener('click', () => openProductModal());
+            }
+        });
+    </script>
+</body>
+</html>

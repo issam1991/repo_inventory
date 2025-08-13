@@ -203,7 +203,7 @@
     <!-- Application Container -->
     <div id="app" class="min-h-screen">
         <!-- Login Page -->
-        <div id="loginPage" class="hidden min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-light to-white p-4">
+        <div id="loginPage" class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-light to-white p-4">
             <div class="bg-white p-6 sm:p-8 rounded-2xl shadow-xl w-full max-w-md fade-in">
                 <div class="text-center mb-6 sm:mb-8">
                     <div class="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-xl mx-auto mb-3 sm:mb-4 flex items-center justify-center">
@@ -270,8 +270,8 @@
                     
                     <div class="flex items-center space-x-4">
                         <!-- Alerts Badge -->
-                        <div class="relative " id="alertsContainer">
-                            <button id="alertsBtn" class=" hidden p-2 sm:p-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors">
+                        <div class="relative" id="alertsContainer">
+                            <button id="alertsBtn" class="p-2 sm:p-3 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-colors">
                                 <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
                                 </svg>
@@ -918,128 +918,51 @@
         let currentProductId = null;
         let confirmCallback = null;
 
-        // User roles and permissions (will be loaded from backend)
-        let users = {};
+        // User roles and permissions
+        const users = {
+            admin: { name: 'Admin', role: 'Administrateur', permissions: ['all'] },
+            employee1: { name: 'Marie', role: 'Employée', permissions: ['quick-entry', 'quick-exit'] },
+            employee2: { name: 'Pierre', role: 'Employé', permissions: ['quick-entry', 'quick-exit'] }
+        };
 
         // Initialize application
         document.addEventListener('DOMContentLoaded', async function() {
-            // Check for persistent login FIRST - if user is already connected, bypass login
-            const savedUser = localStorage.getItem('inventoryUser');
-            if (savedUser) {
-                try {
-                    const userData = JSON.parse(savedUser);
-                    console.log('Found existing session, bypassing login:', userData);
-                    
-                    if (users[userData.id]) {
-                        // User exists, restore session immediately
-                        await restoreUserSession(userData);
-                        return; // Exit early, don't show login page
-                    } else {
-                        console.log('User not found in system, clearing session');
-                        localStorage.removeItem('inventoryUser');
-                        localStorage.removeItem('inventoryCurrentPage');
-                    }
-                } catch (error) {
-                    console.error('Error parsing saved user data:', error);
-                    localStorage.removeItem('inventoryUser');
-                    localStorage.removeItem('inventoryCurrentPage');
-                }
-            } else {
-                console.log('No saved session found, showing login page');
-                // Show login page since no session was found
-                document.getElementById('loginPage').classList.remove('hidden');
-            }
-            
-            // Only initialize app and load data if no valid session was found
             await loadSampleData();
             initializeApp();
+            await checkPersistentLogin(); // Check if user was previously logged in
         });
 
-        // Session restoration function
-        async function restoreUserSession(userData) {
-            console.log('Restoring user session:', userData);
-            
-            // Load data first to get users from backend
-            await loadSampleData();
-            
-            // Check if user still exists in the loaded users
-            if (users[userData.id]) {
-                // Use saved user data (including permissions) instead of users object
-                currentUser = { 
-                    id: userData.id, 
-                    name: userData.name, 
-                    role: userData.role, 
-                    permissions: userData.permissions || users[userData.id].permissions 
-                };
-                console.log('User restored successfully:', currentUser);
-                
-                initializeApp();
-                
-                // Hide login page and show main app
-                document.getElementById('loginPage').classList.add('hidden');
-                document.getElementById('mainApp').classList.remove('hidden');
-                
-                // Update user info in header
-                document.getElementById('userName').textContent = currentUser.name;
-                document.getElementById('userRole').textContent = currentUser.role;
-                document.getElementById('userInitial').textContent = currentUser.name.charAt(0);
-                
-                // Show/hide admin features
-                await updateUIForRole();
-                
-                // Restore last viewed page or default to appropriate page based on role
-                const savedPage = localStorage.getItem('inventoryCurrentPage');
-                const isAdmin = currentUser.permissions.includes('all');
-                let pageToShow;
-                
-                console.log('Saved page:', savedPage, 'Is admin:', isAdmin);
-                
-                if (savedPage && hasPermission(savedPage)) {
-                    pageToShow = savedPage;
-                    console.log('Using saved page:', pageToShow);
-                } else {
-                    // Default to appropriate page based on user role
-                    pageToShow = isAdmin ? 'dashboard' : 'quick-entry';
-                    console.log('Using default page:', pageToShow);
-                }
-                
-                await showPage(pageToShow);
-                
-                // Ensure data is loaded and UI is updated
-                populateSelects();
-                await updateDashboard();
-                
-                showNotification(`Bon retour ${currentUser.name} ! 👋`, 'success');
-            } else {
-                console.log('User not found in system, clearing session');
-                localStorage.removeItem('inventoryUser');
-                localStorage.removeItem('inventoryCurrentPage');
-                // Show login page since user no longer exists
-                document.getElementById('loginPage').classList.remove('hidden');
-            }
-        }
-
-        // Persistent login functionality (kept for backward compatibility)
+        // Persistent login functionality
         async function checkPersistentLogin() {
             const savedUser = localStorage.getItem('inventoryUser');
             if (savedUser) {
                 try {
                     const userData = JSON.parse(savedUser);
-                    console.log('Attempting to restore user session:', userData);
-                    
                     // Verify user still exists in our system
                     if (users[userData.id]) {
-                        await restoreUserSession(userData);
-                    } else {
-                        console.log('User not found in system, clearing session');
-                        localStorage.removeItem('inventoryUser');
+                        currentUser = { id: userData.id, ...users[userData.id] };
+                        document.getElementById('loginPage').classList.add('hidden');
+                        document.getElementById('mainApp').classList.remove('hidden');
+                        
+                        // Update user info in header
+                        document.getElementById('userName').textContent = currentUser.name;
+                        document.getElementById('userRole').textContent = currentUser.role;
+                        document.getElementById('userInitial').textContent = currentUser.name.charAt(0);
+                        
+                        // Show/hide admin features
+                        updateUIForRole();
+                        showPage('dashboard');
+                        
+                        // Ensure data is loaded and UI is updated
+                        populateSelects();
+                        await updateDashboard();
+                        
+                        showNotification(`Bon retour ${currentUser.name} ! 👋`, 'success');
                     }
                 } catch (error) {
                     console.error('Error parsing saved user data:', error);
                     localStorage.removeItem('inventoryUser');
                 }
-            } else {
-                console.log('No saved user session found');
             }
         }
 
@@ -1048,17 +971,13 @@
                 localStorage.setItem('inventoryUser', JSON.stringify({
                     id: currentUser.id,
                     name: currentUser.name,
-                    role: currentUser.role,
-                    permissions: currentUser.permissions
+                    role: currentUser.role
                 }));
-                // Save current page for persistence
-                localStorage.setItem('inventoryCurrentPage', currentPage);
             }
         }
 
         function clearUserSession() {
             localStorage.removeItem('inventoryUser');
-            localStorage.removeItem('inventoryCurrentPage');
         }
 
         // Mobile navigation functions
@@ -1168,31 +1087,20 @@
         async function loadSampleData() {
             try {
                 // Load data from API
-                const [categoriesData, productsData, movementsData, usersData] = await Promise.all([
+                const [categoriesData, productsData, movementsData] = await Promise.all([
                     apiRequest('/categories'),
                     apiRequest('/products'),
-                    apiRequest('/movements'),
-                    apiRequest('/auth/users')
+                    apiRequest('/movements')
                 ]);
                 
                 categories = categoriesData;
                 products = productsData;
                 movements = movementsData;
                 
-                // Convert users array to object format for compatibility
-                users = {};
-                usersData.forEach(user => {
-                    users[user.id] = {
-                        name: user.name,
-                        role: user.role,
-                        permissions: user.id === 'admin' ? ['all'] : ['quick-entry', 'quick-exit']
-                    };
-                });
-                
                 updateDashboard();
                 populateSelects();
                 
-                // showNotification('✅ Données chargées avec succès', 'success');
+                showNotification('✅ Données chargées avec succès', 'success');
             } catch (error) {
                 console.error('Failed to load data:', error);
                 showNotification('❌ Erreur lors du chargement des données', 'error');
@@ -1201,7 +1109,6 @@
                 categories = [];
                 products = [];
                 movements = [];
-                users = {};
             }
         }
 
@@ -1210,29 +1117,15 @@
             const selectedUser = document.getElementById('loginUser').value;
             const password = document.getElementById('loginPassword').value;
             
-            if (!selectedUser || !password) {
-                showNotification('Veuillez sélectionner un utilisateur et saisir un mot de passe ❌', 'error');
-                return;
-            }
+            // Simple demo authentication
+            const validPasswords = {
+                admin: '1234',
+                employee1: '0000',
+                employee2: '0000'
+            };
             
-            try {
-                // Authenticate with backend
-                const response = await apiRequest('/auth/login', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        userId: selectedUser,
-                        password: password
-                    })
-                });
-                
-                // Authentication successful
-                currentUser = { 
-                    id: response.id, 
-                    name: response.name, 
-                    role: response.role, 
-                    permissions: response.permissions 
-                };
-                
+            if (selectedUser && validPasswords[selectedUser] === password) {
+                currentUser = { id: selectedUser, ...users[selectedUser] };
                 document.getElementById('loginPage').classList.add('hidden');
                 document.getElementById('mainApp').classList.remove('hidden');
                 
@@ -1242,15 +1135,8 @@
                 document.getElementById('userInitial').textContent = currentUser.name.charAt(0);
                 
                 // Show/hide admin features
-                await updateUIForRole();
-                
-                // Navigate to appropriate page based on user role
-                const isAdmin = currentUser.permissions.includes('all');
-                if (isAdmin) {
-                    await showPage('dashboard');
-                } else {
-                    await showPage('quick-entry');
-                }
+                updateUIForRole();
+                showPage('dashboard');
                 
                 // Ensure data is loaded and UI is updated
                 populateSelects();
@@ -1260,23 +1146,23 @@
                 saveUserSession();
                 
                 showNotification(`Bienvenue ${currentUser.name} ! 👋`, 'success');
-            } catch (error) {
-                console.error('Login error:', error);
+            } else {
                 showNotification('Code d\'accès incorrect ❌', 'error');
             }
         }
 
-        async function updateUIForRole() {
+        function updateUIForRole() {
             const isAdmin = currentUser.permissions.includes('all');
             
             if (isAdmin) {
                 // Admin sees dashboard with all buttons
                 document.getElementById('addProductBtn').style.display = 'block';
+                showPage('dashboard');
             } else {
-                // Employees - hide admin features
+                // Employees go directly to quick entry page - no dashboard
                 document.getElementById('addProductBtn').style.display = 'none';
+                showPage('quick-entry');
             }
-            // Don't automatically show a page here - let the calling function handle page navigation
         }
 
         function handleLogout() {
@@ -1288,7 +1174,7 @@
             document.getElementById('loginPassword').value = '';
         }
 
-        async function showPage(page) {
+        function showPage(page) {
             // Check permissions
             if (!hasPermission(page)) {
                 showNotification('Accès non autorisé ⛔', 'error');
@@ -1331,7 +1217,7 @@
                 } else if (page === 'inventory') {
                     renderInventory();
                 } else if (page === 'reports') {
-                    await renderReports();
+                    renderReports();
                 } else if (page === 'stock-entry' || page === 'stock-exit') {
                     populateProductSelects();
                 } else if (page === 'quick-entry') {
@@ -1349,30 +1235,9 @@
         }
 
         function hasPermission(page) {
-            if (!currentUser) {
-                console.log('hasPermission: No current user');
-                return false;
-            }
-            if (currentUser.permissions.includes('all')) {
-                console.log('hasPermission: User has all permissions');
-                return true;
-            }
-            
-            // Map page names to permission names
-            const permissionMap = {
-                'dashboard': 'all', // Only admin can see dashboard
-                'reports': 'all',   // Only admin can see reports
-                'inventory': 'all', // Only admin can see inventory management
-                'quick-entry': 'quick-entry',
-                'quick-exit': 'quick-exit'
-            };
-            
-            const requiredPermission = permissionMap[page];
-            const hasPermission = requiredPermission ? currentUser.permissions.includes(requiredPermission) : false;
-            
-            console.log(`hasPermission(${page}): User permissions: [${currentUser.permissions.join(', ')}], Required: ${requiredPermission}, Result: ${hasPermission}`);
-            
-            return hasPermission;
+            if (!currentUser) return false;
+            if (currentUser.permissions.includes('all')) return true;
+            return currentUser.permissions.includes(page);
         }
 
         async function updateDashboard() {
@@ -1388,81 +1253,78 @@
                 const inStockProducts = dashboardData.total_products - dashboardData.low_stock - dashboardData.out_stock;
                 document.getElementById('inStockProducts').textContent = inStockProducts;
             
-                // Update alerts badge
-                const alertsCount = dashboardData.low_stock + dashboardData.out_stock;
-                document.getElementById('alertsBadge').textContent = alertsCount;
-                
-                // Show/hide alerts container based on count
-                const alertsContainer = document.getElementById('alertsContainer');
-                if (alertsCount === 0) {
-                    alertsContainer.style.display = 'none';
-                } else {
-                    alertsContainer.style.display = 'block';
-                }
-                
-                // Get low stock and out of stock products for alerts
-                const lowStockProducts = await apiRequest('/products');
-                const alertItems = lowStockProducts.filter(p => p.quantity <= p.min_stock);
-                
-                // Stock alerts
-                const stockAlerts = document.getElementById('stockAlerts');
-                
-                if (alertItems.length === 0) {
-                    stockAlerts.innerHTML = '<p class="text-gray-500 text-center py-4">✅ Aucune alerte de stock</p>';
-                } else {
-                    stockAlerts.innerHTML = alertItems.map(product => {
-                        const isOutOfStock = product.quantity === 0;
-                        return `
-                            <div class="flex items-center justify-between p-4 ${isOutOfStock ? 'bg-red-50 border border-red-200 stock-critical' : 'bg-yellow-50 border border-yellow-200'} rounded-lg">
-                                <div class="flex items-center">
-                                    <div class="w-3 h-3 ${isOutOfStock ? 'bg-red-500' : 'bg-yellow-500'} rounded-full mr-3"></div>
-                                    <div>
-                                        <p class="font-medium text-gray-900">${product.name}</p>
-                                        <p class="text-sm text-gray-600">Stock: ${product.quantity} (Min: ${product.min_stock})</p>
-                                    </div>
-                                </div>
-                                <span class="px-3 py-1 ${isOutOfStock ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'} text-sm rounded-full font-medium">
-                                    ${isOutOfStock ? '❌ Rupture' : '⚠️ Faible'}
-                                </span>
-                            </div>
-                        `;
-                    }).join('');
-                }
-                
-                // Recent activities
-                const recentActivities = document.getElementById('recentActivities');
-                const recentMovements = dashboardData.recent_movements || [];
-                
-                if (recentMovements.length === 0) {
-                    recentActivities.innerHTML = '<p class="text-gray-500 text-center py-4">Aucune activité récente</p>';
-                } else {
-                    recentActivities.innerHTML = recentMovements.map(movement => {
-                        const isEntry = movement.type === 'entry';
-                        const timeAgo = getTimeAgo(new Date(movement.date));
-                        
-                        return `
-                            <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                                <div class="w-10 h-10 ${isEntry ? 'bg-green-100' : 'bg-blue-100'} rounded-full flex items-center justify-center">
-                                    <svg class="w-5 h-5 ${isEntry ? 'text-green-600' : 'text-blue-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isEntry ? 'M12 6v6m0 0v6m0-6h6m-6 0H6' : 'M12 14l-4-4m0 0l4-4m-4 4h12'}"></path>
-                                    </svg>
-                                </div>
-                                <div class="flex-1">
-                                    <p class="text-sm font-medium text-gray-900">
-                                        ${isEntry ? '📦' : '📤'} ${movement.product_name}
-                                    </p>
-                                    <p class="text-xs text-gray-500">
-                                        ${isEntry ? '+' : '-'}${movement.quantity} • ${movement.user} • ${timeAgo}
-                                    </p>
-                                </div>
-                            </div>
-                        `;
-                    }).join('');
-                }
-            } catch (error) {
-                console.error('Failed to update dashboard:', error);
-                showNotification('❌ Erreur lors du chargement du tableau de bord', 'error');
+            // Update alerts badge
+            const alertsCount = lowStockProducts + outOfStockProducts;
+            document.getElementById('alertsBadge').textContent = alertsCount;
+            
+            // Show/hide alerts container based on count
+            const alertsContainer = document.getElementById('alertsContainer');
+            if (alertsCount === 0) {
+                alertsContainer.style.display = 'none';
+            } else {
+                alertsContainer.style.display = 'block';
             }
+            
+            // Stock alerts
+            const stockAlerts = document.getElementById('stockAlerts');
+            const alertItems = products.filter(p => p.quantity <= p.minStock);
+            
+            if (alertItems.length === 0) {
+                stockAlerts.innerHTML = '<p class="text-gray-500 text-center py-4">✅ Aucune alerte de stock</p>';
+            } else {
+                stockAlerts.innerHTML = alertItems.map(product => {
+                    const isOutOfStock = product.quantity === 0;
+                    return `
+                        <div class="flex items-center justify-between p-4 ${isOutOfStock ? 'bg-red-50 border border-red-200 stock-critical' : 'bg-yellow-50 border border-yellow-200'} rounded-lg">
+                            <div class="flex items-center">
+                                <div class="w-3 h-3 ${isOutOfStock ? 'bg-red-500' : 'bg-yellow-500'} rounded-full mr-3"></div>
+                                <div>
+                                    <p class="font-medium text-gray-900">${product.name}</p>
+                                    <p class="text-sm text-gray-600">Stock: ${product.quantity} (Min: ${product.minStock})</p>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 ${isOutOfStock ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'} text-sm rounded-full font-medium">
+                                ${isOutOfStock ? '❌ Rupture' : '⚠️ Faible'}
+                            </span>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            // Recent activities
+            const recentActivities = document.getElementById('recentActivities');
+            const recentMovements = movements.slice(-5).reverse();
+            
+            if (recentMovements.length === 0) {
+                recentActivities.innerHTML = '<p class="text-gray-500 text-center py-4">Aucune activité récente</p>';
+            } else {
+                recentActivities.innerHTML = recentMovements.map(movement => {
+                    const isEntry = movement.type === 'entry';
+                    const timeAgo = getTimeAgo(new Date(movement.date));
+                    
+                    return `
+                        <div class="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                            <div class="w-10 h-10 ${isEntry ? 'bg-green-100' : 'bg-blue-100'} rounded-full flex items-center justify-center">
+                                <svg class="w-5 h-5 ${isEntry ? 'text-green-600' : 'text-blue-600'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${isEntry ? 'M12 6v6m0 0v6m0-6h6m-6 0H6' : 'M12 14l-4-4m0 0l4-4m-4 4h12'}"></path>
+                                </svg>
+                            </div>
+                            <div class="flex-1">
+                                <p class="text-sm font-medium text-gray-900">
+                                    ${isEntry ? '📦' : '📤'} ${movement.productName}
+                                </p>
+                                <p class="text-xs text-gray-500">
+                                    ${isEntry ? '+' : '-'}${movement.quantity} • ${movement.user} • ${timeAgo}
+                                </p>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        } catch (error) {
+            console.error('Failed to update dashboard:', error);
+            showNotification('❌ Erreur lors du chargement du tableau de bord', 'error');
+        }
         }
 
         function populateSelects() {
@@ -1722,7 +1584,7 @@
             }
         }
 
-        async function renderReports() {
+        function renderReports() {
             if (!hasPermission('reports')) return;
             
             // Daily movements
@@ -1775,10 +1637,7 @@
             
             // Movement history
             const historyTable = document.getElementById('movementsHistory');
-            const allMovements = await apiRequest('/movements');
-            const recentMovements = allMovements.slice(0, 20); // API already returns DESC order
-            
-            historyTable.innerHTML = recentMovements.map(movement => {
+            historyTable.innerHTML = movements.slice(-20).reverse().map(movement => {
                 const date = new Date(movement.date);
                 const isEntry = movement.type === 'entry';
                 
@@ -1788,7 +1647,7 @@
                             ${date.toLocaleDateString()} ${date.toLocaleTimeString()}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ${movement.product_name}
+                            ${movement.productName}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 py-1 text-xs font-medium rounded-full ${isEntry ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}">
