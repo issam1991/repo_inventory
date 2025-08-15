@@ -1641,13 +1641,16 @@
             
             let filteredProducts = products.filter(product => {
                 const matchesSearch = product.name.toLowerCase().includes(searchTerm);
-                const matchesCategory = !categoryFilter || product.categoryId.toString() === categoryFilter;
+                const categoryIdValue = (product.category_id ?? product.categoryId);
+                const matchesCategory = !categoryFilter || String(categoryIdValue) === categoryFilter;
                 
                 let matchesStatus = true;
                 if (statusFilter === 'ok') {
-                    matchesStatus = product.quantity > product.min_stock;
+                    const minStockVal = (product.min_stock ?? product.minStock) || 0;
+                    matchesStatus = product.quantity > minStockVal;
                 } else if (statusFilter === 'low') {
-                    matchesStatus = product.quantity <= product.minStock && product.quantity > 0;
+                    const minStockVal = (product.min_stock ?? product.minStock) || 0;
+                    matchesStatus = product.quantity <= minStockVal && product.quantity > 0;
                 } else if (statusFilter === 'out') {
                     matchesStatus = product.quantity === 0;
                 }
@@ -1671,11 +1674,18 @@
                                 </span>
                             </div>
                             ${isAdmin ? `
-                                <button onclick="editProduct(${product.id})" class="p-2 text-gray-400 hover:text-primary">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                                    </svg>
-                                </button>
+                                <div class="flex items-center space-x-2">
+                                    <button onclick="editProduct(${product.id})" class="p-2 text-gray-400 hover:text-primary">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                        </svg>
+                                    </button>
+                                    <button onclick="deleteProduct(${product.id})" class="p-2 text-gray-400 hover:text-red-600">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m-7 0V5a2 2 0 012-2h2a2 2 0 012 2v2"></path>
+                                        </svg>
+                                    </button>
+                                </div>
                             ` : ''}
                         </div>
                         
@@ -1823,7 +1833,7 @@
                 title.textContent = '✏️ Modifier l\'Article';
                 
                 document.getElementById('productName').value = product.name;
-                document.getElementById('productCategory').value = product.categoryId;
+                document.getElementById('productCategory').value = (product.category_id ?? product.categoryId);
                 document.getElementById('productQuantity').value = product.quantity;
                 document.getElementById('productPrice').value = product.price || '';
                 document.getElementById('productMinStock').value = product.min_stock;
@@ -1889,6 +1899,33 @@
 
         function editProduct(productId) {
             openProductModal(productId);
+        }
+
+        async function deleteProduct(productId) {
+            if (!hasPermission('all')) {
+                showNotification('Accès non autorisé ⛔', 'error');
+                return;
+            }
+            const product = products.find(p => p.id === productId);
+            if (!product) return;
+            
+            showConfirmModal(`Supprimer définitivement "${product.name}" ?`, async () => {
+                try {
+                    await apiRequest(`/products/${productId}`, { method: 'DELETE' });
+                    // Remove locally
+                    products = products.filter(p => p.id !== productId);
+                    // Refresh UI
+                    updateDashboard();
+                    populateSelects();
+                    if (currentPage === 'inventory') {
+                        renderInventory();
+                    }
+                    showNotification('✅ Article supprimé', 'success');
+                } catch (err) {
+                    console.error('Delete failed', err);
+                    showNotification('❌ Erreur lors de la suppression', 'error');
+                }
+            });
         }
 
         // Utility functions

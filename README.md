@@ -2,6 +2,35 @@
 
 A full-stack inventory management application with a Flask backend and responsive HTML frontend.
 
+## How to run
+To run the Inventory Management System locally:
+
+1. **Download the project files**  
+   - Download or copy all files from this repository to a folder on your computer.
+
+2. **Install Python dependencies**  
+   Open a terminal in the project folder and run:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+3. **Start the Flask backend**  
+   In the same terminal, run:
+   ```bash
+   python app.py
+   ```
+   The backend will start on [http://127.0.0.1:5000](http://127.0.0.1:5000) by default.
+
+4. **Open the frontend**  
+   - Open the `repo_inventory.html` file in your web browser.
+   - For best results, you can also serve the file using a local web server (e.g., `python -m http.server`) and visit [http://localhost:8000/repo_inventory.html](http://localhost:8000/repo_inventory.html).
+
+5. **Login** using one of the default users listed below.
+
+**Note:** No database setup is required; all data is stored in local JSON files by default.
+
+
+
 ## Features
 
 - **Product Management**: Add, edit, delete products with categories
