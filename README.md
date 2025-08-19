@@ -173,3 +173,252 @@ The application is fully responsive and works on:
 - Mobile phones
 
 The interface automatically adapts to screen size with appropriate navigation and layout changes.
+
+## Data Model Schema
+
+### Entities and Relationships
+
+- **User** (`users`)
+  - `id` TEXT PRIMARY KEY
+  - `name` TEXT NOT NULL
+  - `role` TEXT NOT NULL
+  - `password_hash` TEXT NOT NULL
+  - `permissions` TEXT NOT NULL (comma-separated list; returned by API as string array)
+
+- **Category** (`categories`)
+  - `id` INTEGER PRIMARY KEY AUTOINCREMENT
+  - `name` TEXT NOT NULL
+  - `description` TEXT
+
+- **Product** (`products`)
+  - `id` INTEGER PRIMARY KEY AUTOINCREMENT
+  - `name` TEXT NOT NULL
+  - `category_id` INTEGER NULL REFERENCES `categories`(`id`)
+  - `quantity` INTEGER DEFAULT 0
+  - `price` REAL DEFAULT 0
+  - `min_stock` INTEGER DEFAULT 0
+  - `description` TEXT
+  - API responses also include `category` (category name, derived via JOIN)
+
+- **Movement** (`movements`)
+  - `id` INTEGER PRIMARY KEY AUTOINCREMENT
+  - `product_id` INTEGER REFERENCES `products`(`id`)
+  - `product_name` TEXT (denormalized for history)
+  - `type` TEXT NOT NULL ('entry' | 'exit')
+  - `quantity` INTEGER NOT NULL
+  - `reason` TEXT
+  - `user` TEXT (free-text user name, not a foreign key)
+  - `date` TEXT (ISO-8601 string)
+  - `comment` TEXT
+
+Relationships:
+- A `product` belongs to a `category` (optional).
+- A `movement` belongs to a `product`.
+
+### API Data Contracts
+
+#### Authentication
+- POST `/api/auth/login`
+  - Request:
+    ```json
+    { "userId": "string", "password": "string" }
+    ```
+  - Response 200:
+    ```json
+    { "id": "string", "name": "string", "role": "string", "permissions": ["string"] }
+    ```
+
+- GET `/api/auth/users`
+  - Response:
+    ```json
+    [ { "id": "string", "name": "string", "role": "string" } ]
+    ```
+
+#### Categories
+- GET `/api/categories`
+  - Response:
+    ```json
+    [ { "id": 1, "name": "string", "description": "string" } ]
+    ```
+
+- POST `/api/categories`
+  - Request:
+    ```json
+    { "name": "string", "description": "string (optional)" }
+    ```
+  - Response 201:
+    ```json
+    { "id": 1, "name": "string", "description": "string" }
+    ```
+
+#### Products
+- GET `/api/products`
+  - Response (each item):
+    ```json
+    {
+      "id": 1,
+      "name": "string",
+      "category_id": 1,
+      "quantity": 0,
+      "price": 0,
+      "min_stock": 0,
+      "description": "string",
+      "category": "Category Name" // derived
+    }
+    ```
+
+- POST `/api/products`
+  - Request:
+    ```json
+    {
+      "name": "string",
+      "categoryId": 1,
+      "quantity": 0,
+      "price": 0,
+      "minStock": 0,
+      "description": "string (optional)"
+    }
+    ```
+  - Response 201: product object as in GET
+
+- PUT `/api/products/<id>`
+  - Request: same shape as POST
+  - Response: product object as in GET
+
+- DELETE `/api/products/<id>`
+  - Response:
+    ```json
+    { "message": "Product deleted successfully" }
+    ```
+
+#### Movements
+- GET `/api/movements`
+  - Response (each item):
+    ```json
+    {
+      "id": 1,
+      "product_id": 1,
+      "product_name": "string",
+      "type": "entry" | "exit",
+      "quantity": 0,
+      "reason": "string",
+      "user": "string",
+      "date": "2024-01-01T12:00:00.000Z",
+      "comment": "string"
+    }
+    ```
+
+- POST `/api/movements`
+  - Request:
+    ```json
+    {
+      "productId": 1,
+      "productName": "string",
+      "type": "entry" | "exit",
+      "quantity": 0,
+      "reason": "string",
+      "user": "string",
+      "date": "2024-01-01T12:00:00.000Z",
+      "comment": "string (optional)"
+    }
+    ```
+  - Response 201: movement object as in GET
+
+#### Dashboard
+- GET `/api/dashboard`
+  - Response:
+    ```json
+    {
+      "total_products": 0,
+      "low_stock": 0,
+      "out_stock": 0,
+      "total_value": 0,
+      "recent_movements": [ /* array of movement objects */ ]
+    }
+    ```
+
+## Diagrams
+
+### ER (Merise-style) Diagram
+
+```mermaid
+erDiagram
+  users {
+    string id PK
+    string name
+    string role
+    string password_hash
+    string permissions
+  }
+  categories {
+    int id PK
+    string name
+    string description
+  }
+  products {
+    int id PK
+    string name
+    int category_id FK
+    int quantity
+    float price
+    int min_stock
+    string description
+  }
+  movements {
+    int id PK
+    int product_id FK
+    string product_name
+    string type
+    int quantity
+    string reason
+    string user
+    string date
+    string comment
+  }
+
+  categories ||--o{ products : "contains"
+  products ||--o{ movements : "has"
+```
+
+### UML Class Diagram
+
+```mermaid
+classDiagram
+  class User {
+    +id: string
+    +name: string
+    +role: string
+    +password_hash: string
+    +permissions: string[]
+  }
+  class Category {
+    +id: int
+    +name: string
+    +description: string
+  }
+  class Product {
+    +id: int
+    +name: string
+    +category_id: int
+    +quantity: int
+    +price: float
+    +min_stock: int
+    +description: string
+    +category: string
+  }
+  class Movement {
+    +id: int
+    +product_id: int
+    +product_name: string
+    +type: "entry"|"exit"
+    +quantity: int
+    +reason: string
+    +user: string
+    +date: string
+    +comment: string
+  }
+
+  Category "1" o-- "0..*" Product : "categorizes"
+  Product "1" o-- "0..*" Movement : "records"
+```
+
