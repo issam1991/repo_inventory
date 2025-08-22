@@ -1,5 +1,5 @@
 // API Base URL
-const API_BASE_URL = 'http://35.208.92.137:5000/api';
+const API_BASE_URL = '/api';
 
 // API Functions
 async function apiRequest(endpoint, options = {}) {
