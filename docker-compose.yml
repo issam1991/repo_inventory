@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  inventory-app:
+    build: .
+    container_name: inventory-management
+    ports:
+      - "5000:5000"  # Flask API
+      - "8080:8080"  # Static files
+    volumes:
+      - ./inventory.db:/app/inventory.db  # Persist database
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/categories"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
